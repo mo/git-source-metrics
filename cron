@@ -1,0 +1,164 @@
+#!/usr/bin/env python
+
+import os
+import stat
+import shutil
+import random
+import pprint
+import argparse
+import datetime
+import tempfile
+import subprocess
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+CONFIG_DIR = "~/.git-source-metrics/"
+CODE_CACHE_DIR = "~/.git-source-metrics/code/"
+
+def local_workingdir(git_repo):
+    code_cache_dir = os.path.expanduser(CODE_CACHE_DIR)
+    if not os.path.exists(code_cache_dir):
+        os.makedirs(code_cache_dir)
+    working_dirname = filter(str.isalnum, git_repo)
+    working_dir_path = os.path.join(code_cache_dir, working_dirname)
+    return working_dir_path
+
+def fetch_latest_code(git_repo):
+    git_workdir = local_workingdir(git_repo)
+    if not os.path.exists(git_workdir):
+        subprocess.check_call("git clone %s %s" % (git_repo, git_workdir), shell=True)
+    else:
+        subprocess.check_call("git fetch -q", cwd=git_workdir, shell=True)
+
+def git_reset_to(git_workdir, sha1):
+    subprocess.check_call("git clean -dxff", cwd=git_workdir, shell=True)
+    subprocess.check_call("git reset -q --hard %s" % sha1, cwd=git_workdir, shell=True)
+
+def get_sparse_commits(git_workdir, gap_days):
+    git_reset_to(git_workdir, "origin/master")
+    git_log_cmd = "git log --first-parent --pretty=format:'%H %ct'"
+    git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True)
+    sha1_and_timestamp_list = git_log_output.splitlines()
+
+    all_xtick_sha1s = []
+    last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
+
+    while len(sha1_and_timestamp_list) > 0:
+        sha1, timestamp = sha1_and_timestamp_list.pop(-1).split(" ", 1)
+        commit_date = datetime.datetime.fromtimestamp(int(timestamp))
+        if commit_date < last_tick_commit_date:
+            if not args.quiet:
+                print "WARNING: commit with sha1 %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % sha1
+            continue
+        if (commit_date - last_tick_commit_date).days >= gap_days:
+            all_xtick_sha1s.append((sha1, timestamp))
+            last_tick_commit_date = commit_date
+
+    return all_xtick_sha1s
+
+def grep_count(git_workdir, word):
+    return int(subprocess.check_output("git grep '%s' | wc -l" % word, cwd=git_workdir, shell=True).strip())
+
+def measure_metric(metric, git_workdir):
+    if metric["type"] == "grep":
+        return grep_count(git_workdir, metric["regex"])
+    # add code here if other metrics are developed
+    assert False
+
+class MeasuredData(object):
+    def __init__(self):
+        self.metric_datapoints = {}
+
+    def load_from_file(self, filename):
+        self.metric_datapoints = eval(open(filename).read())
+
+    def save_to_file(self, filename):
+        string_data = pprint.pformat(self.metric_datapoints)
+        with open(filename, "w") as fil:
+            fil.write(string_data)
+
+    def get_metric_data(self, metric_name):
+        return self.metric_datapoints.setdefault(metric_name, {})
+
+    def is_measured(self, metric_name, sha1):
+        return sha1 in self.get_metric_data(metric_name)
+
+    def add_measurement(self, metric_name, sha1, timestamp, value):
+        datapoint = {
+            "sha1": sha1,
+            "timestamp": timestamp,
+            "value": value,
+        }
+        metric_data = self.get_metric_data(metric_name)
+        metric_data[sha1] = datapoint
+
+def save_copy_of_data_as_javascript(all_dataset_configs, data, filename):
+    jsdata_tempfile_oshandle, jsdata_tempfile_name = tempfile.mkstemp()
+    with open(os.path.join(jsdata_tempfile_name), "w") as tmpfile:
+        tmpfile.write("jsdata = {\n")
+        for dataset_name, dataset_config in all_dataset_configs.iteritems():
+            tmpfile.write("    '%s': {\n" % dataset_name)
+            tmpfile.write("        'title': '%s',\n" % dataset_config["title"])
+            tmpfile.write("        'series': [\n")
+            for metric in dataset_config["metrics"]:
+                series_data = data.get_metric_data(metric["name"])
+                tmpfile.write("        {\n")
+                tmpfile.write("            'metric': '%s',\n" % metric["name"])
+                tmpfile.write("            'name': 'grep hits for \\\'%s\\\'',\n" % metric["regex"])
+                tmpfile.write("            'data': [")
+                series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): datapoint["timestamp"])
+                for idx, (sha1, datapoint) in enumerate(series_data):
+                    if idx:
+                        tmpfile.write("                     ")
+                    tmpfile.write("{ 'x': %s, 'y': %s, 'sha1': '%s' },\n" % (datapoint["timestamp"], datapoint["value"], datapoint["sha1"]))
+                tmpfile.write("            ],\n")
+                tmpfile.write("            'color': '%s',\n" % metric["color"])
+                tmpfile.write("        },\n")
+            tmpfile.write("        ],\n")
+            tmpfile.write("    },\n")
+        tmpfile.write("}\n")
+    # when file is written, move it into place
+    os.close(jsdata_tempfile_oshandle)
+    shutil.move(jsdata_tempfile_name, filename)
+    os.chmod(filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH)
+
+
+def main():
+    config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
+
+    jsdata_filename = os.path.join(SCRIPT_DIR, "..", "data", "jsdata.js")
+
+    data_filename = os.path.join(SCRIPT_DIR, "..", "data", "data.pyon")
+    if os.path.exists(data_filename):
+        data = MeasuredData()
+        data.load_from_file(data_filename)
+    else:
+        data = MeasuredData()
+
+    fetch_latest_code(config["git_repo"])
+    git_workdir = local_workingdir(config["git_repo"])
+    commits_we_need_data_for = get_sparse_commits(git_workdir, config["tick_gap_days"])
+
+    todo_list = []
+    for sha1, timestamp in commits_we_need_data_for:
+        for dataset_name, dataset_config in config["datasets"].iteritems():
+            for metric in dataset_config["metrics"]:
+                if not data.is_measured(metric["name"], sha1):
+                    todo_list.append((metric, sha1, timestamp))
+
+    random.shuffle(todo_list)
+
+    for (metric, sha1, timestamp) in todo_list:
+        git_reset_to(git_workdir, sha1)
+
+        print "measuring: " + sha1
+        value = measure_metric(metric, git_workdir)
+        data.add_measurement(metric["name"], sha1, timestamp, value)
+
+        data.save_to_file(data_filename)
+        save_copy_of_data_as_javascript(config["datasets"], data, jsdata_filename)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--quiet", action="store_true")
+    args = parser.parse_args()
+    main()

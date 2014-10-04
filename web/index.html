@@ -1,0 +1,98 @@
+<!doctype>
+<link type="text/css" rel="stylesheet" href="thirdparty/rickshaw.css">
+<script src="thirdparty/d3.v3.js"></script>
+<script src="thirdparty/d3.layout.min.js"></script>
+<script src="thirdparty/rickshaw.js"></script>
+<script src="utilities.js"></script>
+<script src="../../data/jsdata.js"></script>
+
+<style>
+#chart_container {
+        position: relative;
+        display: inline-block;
+        font-family: Arial, Helvetica, sans-serif;
+        width: 850px;
+}
+#chart {
+        display: inline-block;
+        margin-left: 40px;
+}
+#y_axis {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 40px;
+}
+#x_axis {
+    margin-left: 40px;
+}
+#legend {
+        display: inline-block;
+        vertical-align: top;
+        margin: 0 0 0 10px;
+}
+#dataset_select {
+    width: 800px;
+    margin-left: 40px;
+}
+</style>
+
+<select id="dataset_select" onchange="javascript:window.location='?dataset='+this.value">
+</select>
+<br><br>
+
+<div id="chart_container">
+        <div id="y_axis"></div>
+        <div id="chart"></div>
+        <div id="x_axis"></div>
+</div>
+<div id="legend"></div>
+
+<script>
+var params = get_url_params();
+if (!(params["dataset"] in jsdata) && Object.keys(jsdata).length > 0) {
+    params["dataset"] = Object.keys(jsdata)[0];
+}
+
+for (key in jsdata) {
+    var option = document.createElement("option");
+    option.innerHTML = jsdata[key].title;
+    option.value = key;
+    document.getElementById("dataset_select").appendChild(option);
+}
+document.getElementById('dataset_select').value = params["dataset"]
+document.getElementById('dataset_select').focus()
+
+var graph = new Rickshaw.Graph( {
+        element: document.querySelector("#chart"),
+        width: 800,
+        height: 500,
+        series: jsdata[params["dataset"]].series
+} );
+
+function myFormat(x) {
+    return (new Date(x*1000)).toISOString().substring(0, 10)
+}
+
+var x_axis = new Rickshaw.Graph.Axis.X( {
+    graph: graph,
+    tickFormat: myFormat,
+    orientation: "bottom",
+    element: document.getElementById('x_axis'),
+} );
+
+var y_axis = new Rickshaw.Graph.Axis.Y( {
+        graph: graph,
+        orientation: 'left',
+        element: document.getElementById('y_axis'),
+} );
+
+var legend = new Rickshaw.Graph.Legend( {
+        element: document.querySelector('#legend'),
+        graph: graph
+} );
+
+graph.setRenderer('line');
+graph.render();
+
+</script>

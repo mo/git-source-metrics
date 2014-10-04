@@ -1,0 +1,25 @@
+{
+    "git_repo": "INSERT_GIT_URL_HERE",
+    "tick_gap_days": 1,
+    "datasets": {
+        "grep_dataset": {
+            "title": "grep hits for various regex",
+            "metrics": [
+                {
+                    "name": "grep_import",
+                    "type": "grep",
+                    "regex": "import",
+                    "title": "grep hits for 'import'",
+                    "color": "blue",
+                },
+                {
+                    "name": "grep_if",
+                    "type": "grep",
+                    "regex": "if",
+                    "title": "grep hits for 'if'",
+                    "color": "green",
+                },
+            ]
+        },
+    },
+}
