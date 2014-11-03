@@ -143,20 +143,24 @@ def main():
 
     todo_list = []
     for sha1, timestamp in commits_we_need_data_for:
+        metrics_that_lack_data_for_this_sha1 = []
         for dataset_name, dataset_config in config["datasets"].iteritems():
             for metric in dataset_config["metrics"]:
                 if not data.is_measured(metric["name"], sha1):
-                    todo_list.append((metric, sha1, timestamp))
+                    metrics_that_lack_data_for_this_sha1.append(metric)
+        if len(metrics_that_lack_data_for_this_sha1) > 0:
+            todo_list.append((sha1, timestamp, metrics_that_lack_data_for_this_sha1))
 
     random.shuffle(todo_list)
 
-    for (metric, sha1, timestamp) in todo_list:
+    for (sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
         git_reset_to(git_workdir, sha1)
 
-        if not args.quiet:
-            print "measuring: " + sha1
-        value = measure_metric(metric, git_workdir)
-        data.add_measurement(metric["name"], sha1, timestamp, value)
+        for metric in metrics_that_lack_data_for_this_sha1:
+            if not args.quiet:
+                print "measuring: %s (%s)" % (sha1, metric["name"])
+            value = measure_metric(metric, git_workdir)
+            data.add_measurement(metric["name"], sha1, timestamp, value)
 
         data.save_to_file(data_filename)
         save_copy_of_data_as_javascript(config["datasets"], data, jsdata_filename)
