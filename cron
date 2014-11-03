@@ -94,36 +94,32 @@ class MeasuredData(object):
         metric_data = self.get_metric_data(metric_name)
         metric_data[sha1] = datapoint
 
-def save_copy_of_data_as_javascript(all_dataset_configs, data, filename):
-    jsdata_tempfile_oshandle, jsdata_tempfile_name = tempfile.mkstemp()
-    with open(os.path.join(jsdata_tempfile_name), "w") as tmpfile:
-        tmpfile.write("jsdata = {\n")
+def save_data_jscopy(all_dataset_configs, selected_sha1s, measured_data, jsdata_filename):
+    with open(jsdata_filename, "w") as jsdatafile:
+        jsdatafile.write("jsdata = {\n")
         for dataset_name, dataset_config in all_dataset_configs.iteritems():
-            tmpfile.write("    '%s': {\n" % dataset_name)
-            tmpfile.write("        'title': '%s',\n" % dataset_config["title"])
-            tmpfile.write("        'series': [\n")
+            jsdatafile.write("    '%s': {\n" % dataset_name)
+            jsdatafile.write("        'title': '%s',\n" % dataset_config["title"])
+            jsdatafile.write("        'series': [\n")
             for metric in dataset_config["metrics"]:
-                series_data = data.get_metric_data(metric["name"])
-                tmpfile.write("        {\n")
-                tmpfile.write("            'metric': '%s',\n" % metric["name"])
-                tmpfile.write("            'name': 'grep hits for \\\'%s\\\'',\n" % metric["regex"])
-                tmpfile.write("            'data': [")
+                series_data = measured_data.get_metric_data(metric["name"])
+                jsdatafile.write("        {\n")
+                jsdatafile.write("            'metric': '%s',\n" % metric["name"])
+                jsdatafile.write("            'name': 'grep hits for \\\'%s\\\'',\n" % metric["regex"])
+                jsdatafile.write("            'data': [")
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): datapoint["timestamp"])
+                series_data = filter(lambda (sha1, datapoint): sha1 in selected_sha1s, series_data)
                 for idx, (sha1, datapoint) in enumerate(series_data):
                     if idx:
-                        tmpfile.write("                     ")
-                    tmpfile.write("{ 'x': %s, 'y': %s, 'sha1': '%s' },\n" % (datapoint["timestamp"], datapoint["value"], datapoint["sha1"]))
-                tmpfile.write("            ],\n")
-                tmpfile.write("            'color': '%s',\n" % metric["color"])
-                tmpfile.write("        },\n")
-            tmpfile.write("        ],\n")
-            tmpfile.write("    },\n")
-        tmpfile.write("}\n")
-    # when file is written, move it into place
-    os.close(jsdata_tempfile_oshandle)
-    shutil.move(jsdata_tempfile_name, filename)
-    os.chmod(filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH)
-
+                        jsdatafile.write("                     ")
+                    jsdatafile.write("{ 'x': %s, 'y': %s, 'sha1': '%s' },\n" % (datapoint["timestamp"], datapoint["value"], datapoint["sha1"]))
+                jsdatafile.write("            ],\n")
+                jsdatafile.write("            'color': '%s',\n" % metric["color"])
+                jsdatafile.write("        },\n")
+            jsdatafile.write("        ],\n")
+            jsdatafile.write("    },\n")
+        jsdatafile.write("}\n")
+    os.chmod(jsdata_filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH)
 
 def main():
     config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
@@ -132,26 +128,27 @@ def main():
 
     data_filename = os.path.join(SCRIPT_DIR, "..", "data", "data.pyon")
     if os.path.exists(data_filename):
-        data = MeasuredData()
-        data.load_from_file(data_filename)
+        measured_data = MeasuredData()
+        measured_data.load_from_file(data_filename)
     else:
-        data = MeasuredData()
+        measured_data = MeasuredData()
 
     fetch_latest_code(config["git_repo"])
     git_workdir = local_workingdir(config["git_repo"])
-    commits_we_need_data_for = get_sparse_commits(git_workdir, config["tick_gap_days"])
+    selected_commits = get_sparse_commits(git_workdir, config["tick_gap_days"])
 
     todo_list = []
-    for sha1, timestamp in commits_we_need_data_for:
+    for sha1, timestamp in selected_commits:
         metrics_that_lack_data_for_this_sha1 = []
         for dataset_name, dataset_config in config["datasets"].iteritems():
             for metric in dataset_config["metrics"]:
-                if not data.is_measured(metric["name"], sha1):
+                if not measured_data.is_measured(metric["name"], sha1):
                     metrics_that_lack_data_for_this_sha1.append(metric)
         if len(metrics_that_lack_data_for_this_sha1) > 0:
             todo_list.append((sha1, timestamp, metrics_that_lack_data_for_this_sha1))
 
     random.shuffle(todo_list)
+    selected_sha1s = [sha1 for (sha1, timestamp) in selected_commits]
 
     for (sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
         git_reset_to(git_workdir, sha1)
@@ -160,10 +157,10 @@ def main():
             if not args.quiet:
                 print "measuring: %s (%s)" % (sha1, metric["name"])
             value = measure_metric(metric, git_workdir)
-            data.add_measurement(metric["name"], sha1, timestamp, value)
+            measured_data.add_measurement(metric["name"], sha1, timestamp, value)
 
-        data.save_to_file(data_filename)
-        save_copy_of_data_as_javascript(config["datasets"], data, jsdata_filename)
+        measured_data.save_to_file(data_filename)
+        save_data_jscopy(config["datasets"], selected_sha1s, measured_data, jsdata_filename)
 
 if __name__ == '__main__':
     try:
