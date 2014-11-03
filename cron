@@ -162,6 +162,9 @@ def main():
         measured_data.save_to_file(data_filename)
         save_data_jscopy(config["datasets"], selected_sha1s, measured_data, jsdata_filename)
 
+    else:
+        save_data_jscopy(config["datasets"], selected_sha1s, measured_data, jsdata_filename)
+
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
