@@ -1,22 +1,43 @@
 {
     "git_repo": "INSERT_GIT_URL_HERE",
-    "tick_gap_days": 1,
+    "tick_gap_days": 5,
     "datasets": {
         "grep_dataset": {
             "title": "grep hits for various regex",
             "metrics": [
                 {
                     "name": "grep_import",
-                    "type": "grep",
-                    "regex": "import",
+                    "cmd": "git grep import | wc -l",
                     "title": "grep hits for 'import'",
                     "color": "blue",
                 },
                 {
                     "name": "grep_if",
-                    "type": "grep",
-                    "regex": "if",
+                    "cmd": "git grep if | wc -l",
                     "title": "grep hits for 'if'",
+                    "color": "green",
+                },
+            ]
+        },
+        "active_authors": {
+            "title": "number of unique git authors seen in X last days",
+            "metrics": [
+                {
+                    "name": "active_authors_7days",
+                    "cmd": "git log --pretty=format:%an --since $(($(git log --pretty=format:%ct -1)-7*60*60*24)) | sort | uniq | wc -l",
+                    "title": "active authors last 7 days",
+                    "color": "purple",
+                },
+                {
+                    "name": "active_authors_30days",
+                    "cmd": "git log --pretty=format:%an --since $(($(git log --pretty=format:%ct -1)-30*60*60*24)) | sort | uniq | wc -l",
+                    "title": "active authors last 30 days",
+                    "color": "blue",
+                },
+                {
+                    "name": "active_authors_90days",
+                    "cmd": "git log --pretty=format:%an --since $(($(git log --pretty=format:%ct -1)-90*60*60*24)) | sort | uniq | wc -l",
+                    "title": "active authors last 90 days",
                     "color": "green",
                 },
             ]
