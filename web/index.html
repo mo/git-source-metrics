@@ -3,6 +3,10 @@
 <script src="thirdparty/d3.v3.js"></script>
 <script src="thirdparty/d3.layout.min.js"></script>
 <script src="thirdparty/rickshaw.js"></script>
+<link rel="stylesheet" href="thirdparty/jquery-ui/jquery-ui-1.11.2/jquery-ui.min.css">
+<script src="thirdparty/jquery-ui/jquery-ui-1.11.2/external/jquery/jquery.js"></script>
+<script src="thirdparty/jquery-ui/jquery-ui-1.11.2/jquery-ui.min.js"></script>
+
 <script src="utilities.js"></script>
 <script src="../../data/jsdata.js"></script>
 
@@ -26,6 +30,9 @@
 #x_axis {
     margin-left: 100px;
 }
+#range_slider {
+    margin-left: 100px;
+}
 #legend {
     display: inline-block;
     vertical-align: top;
@@ -45,6 +52,7 @@
         <div id="y_axis"></div>
         <div id="chart"></div>
         <div id="x_axis"></div>
+        <div id="range_slider"></div>
 </div>
 <div id="legend"></div>
 
@@ -100,6 +108,11 @@ var hoverDetail = new Rickshaw.Graph.HoverDetail( {
     },
     yFormatter: function(y) { return y }
 } );
+
+var slider = new Rickshaw.Graph.RangeSlider({
+    graph: graph,
+    element: document.querySelector('#range_slider')
+});
 
 graph.setRenderer('line');
 graph.render();
