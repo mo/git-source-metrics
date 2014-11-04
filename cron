@@ -2,12 +2,10 @@
 
 import os
 import stat
-import shutil
 import random
 import pprint
 import argparse
 import datetime
-import tempfile
 import subprocess
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
