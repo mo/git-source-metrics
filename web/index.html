@@ -71,13 +71,13 @@ var graph = new Rickshaw.Graph( {
         series: jsdata[params["dataset"]].series
 } );
 
-function myFormat(x) {
+function xFormatter(x) {
     return (new Date(x*1000)).toISOString().substring(0, 10)
 }
 
 var x_axis = new Rickshaw.Graph.Axis.X( {
     graph: graph,
-    tickFormat: myFormat,
+    tickFormat: xFormatter,
     orientation: "bottom",
     element: document.getElementById('x_axis'),
 } );
@@ -91,6 +91,14 @@ var y_axis = new Rickshaw.Graph.Axis.Y( {
 var legend = new Rickshaw.Graph.Legend( {
         element: document.querySelector('#legend'),
         graph: graph
+} );
+
+var hoverDetail = new Rickshaw.Graph.HoverDetail( {
+    graph: graph,
+    xFormatter: function(x) {
+        return (new Date(x*1000)).toISOString().substring(0, 10) + " (" + timestamp_to_sha1[x] + ")"
+    },
+    yFormatter: function(y) { return y }
 } );
 
 graph.setRenderer('line');

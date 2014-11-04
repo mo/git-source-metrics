@@ -94,9 +94,10 @@ class MeasuredData(object):
         metric_data = self.get_metric_data(metric_name)
         metric_data[sha1] = datapoint
 
-def save_data_jscopy(all_dataset_configs, selected_sha1s, measured_data, jsdata_filename):
+def save_data_jscopy(all_dataset_configs, selected_commits, measured_data, jsdata_filename):
     with open(jsdata_filename, "w") as jsdatafile:
         jsdatafile.write("jsdata = {\n")
+        selected_sha1s = [sha1 for (sha1, timestamp) in selected_commits]
         for dataset_name, dataset_config in all_dataset_configs.iteritems():
             jsdatafile.write("    '%s': {\n" % dataset_name)
             jsdatafile.write("        'title': '%s',\n" % dataset_config["title"])
@@ -112,13 +113,21 @@ def save_data_jscopy(all_dataset_configs, selected_sha1s, measured_data, jsdata_
                 for idx, (sha1, datapoint) in enumerate(series_data):
                     if idx:
                         jsdatafile.write("                     ")
-                    jsdatafile.write("{ 'x': %s, 'y': %s, 'sha1': '%s' },\n" % (datapoint["timestamp"], datapoint["value"], datapoint["sha1"]))
+                    jsdatafile.write("{ 'x': %s, 'y': %s },\n" % (datapoint["timestamp"], datapoint["value"]))
                 jsdatafile.write("            ],\n")
                 jsdatafile.write("            'color': '%s',\n" % metric["color"])
                 jsdatafile.write("        },\n")
             jsdatafile.write("        ],\n")
             jsdatafile.write("    },\n")
         jsdatafile.write("}\n")
+
+        jsdatafile.write("\n")
+        jsdatafile.write("timestamp_to_sha1 = {\n")
+        if len(selected_commits) > 0:
+            for sha1, timestamp in selected_commits:
+                jsdatafile.write("    %s: '%s',\n" % (timestamp, sha1))
+        jsdatafile.write("}\n")
+
     os.chmod(jsdata_filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH)
 
 def main():
@@ -148,7 +157,6 @@ def main():
             todo_list.append((sha1, timestamp, metrics_that_lack_data_for_this_sha1))
 
     random.shuffle(todo_list)
-    selected_sha1s = [sha1 for (sha1, timestamp) in selected_commits]
 
     for (sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
         git_reset_to(git_workdir, sha1)
@@ -160,10 +168,10 @@ def main():
             measured_data.add_measurement(metric["name"], sha1, timestamp, value)
 
         measured_data.save_to_file(data_filename)
-        save_data_jscopy(config["datasets"], selected_sha1s, measured_data, jsdata_filename)
+        save_data_jscopy(config["datasets"], selected_commits, measured_data, jsdata_filename)
 
     else:
-        save_data_jscopy(config["datasets"], selected_sha1s, measured_data, jsdata_filename)
+        save_data_jscopy(config["datasets"], selected_commits, measured_data, jsdata_filename)
 
 if __name__ == '__main__':
     try:
