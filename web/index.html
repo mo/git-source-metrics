@@ -78,6 +78,8 @@ var graph = new Rickshaw.Graph( {
         stack: false,
         series: jsdata[params["dataset"]].series
 } );
+graph.setRenderer('line');
+graph.render();
 
 function xFormatter(x) {
     return (new Date(x*1000)).toISOString().substring(0, 10)
@@ -89,12 +91,14 @@ var x_axis = new Rickshaw.Graph.Axis.X( {
     orientation: "bottom",
     element: document.getElementById('x_axis'),
 } );
+x_axis.render();
 
 var y_axis = new Rickshaw.Graph.Axis.Y( {
         graph: graph,
         orientation: 'left',
         element: document.getElementById('y_axis'),
 } );
+y_axis.render();
 
 var legend = new Rickshaw.Graph.Legend( {
         element: document.querySelector('#legend'),
@@ -118,8 +122,5 @@ var slider = new Rickshaw.Graph.RangeSlider({
     graph: graph,
     element: document.querySelector('#range_slider')
 });
-
-graph.setRenderer('line');
-graph.render();
 
 </script>
