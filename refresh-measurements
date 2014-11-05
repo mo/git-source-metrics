@@ -42,6 +42,14 @@ def get_sparse_commits(git_workdir, gap_days):
 
     while len(sha1_and_timestamp_list) > 0:
         sha1, timestamp = sha1_and_timestamp_list.pop(-1).split(" ", 1)
+        if not timestamp:
+            if not args.quiet:
+                # Happens for 281a10c59d5a6522b2bebc6f78c165816d1f8421 in https://github.com/mozilla/gecko-dev
+                # Not sure if this is a git bug or not, I couldn't find a way to create a commit with empty
+                # author name (like the one above) so maybe it's a bug in the mercurial to git conversion tool
+                # that mozilla uses.
+                print "WARNING: commit with sha1 %s looks invalid, ignoring." % sha1
+            continue
         commit_date = datetime.datetime.fromtimestamp(int(timestamp))
         if commit_date < last_tick_commit_date:
             if not args.quiet:
