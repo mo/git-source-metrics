@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import stat
 import random
 import pprint
@@ -143,8 +144,12 @@ def main():
     else:
         measured_data = MeasuredData()
 
+    if not args.quiet:
+        print >> sys.stderr, "Fetching the latest code..."
     fetch_latest_code(config["git_repo"])
     git_workdir = local_workingdir(config["git_repo"])
+    if not args.quiet:
+        print >> sys.stderr, "Making list of SHA1s to measure..."
     selected_commits = get_sparse_commits(git_workdir, config["tick_gap_days"])
 
     todo_list = []
@@ -160,11 +165,13 @@ def main():
     random.shuffle(todo_list)
 
     for (sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
+        if not args.quiet:
+            print >> sys.stderr, "Checking out code at: " + sha1
         git_reset_to(git_workdir, sha1)
 
         for metric in metrics_that_lack_data_for_this_sha1:
             if not args.quiet:
-                print "measuring: %s (%s)" % (sha1, metric["name"])
+                print >> sys.stderr, "measuring: %s (%s)" % (sha1, metric["name"])
             value = measure_metric(metric, git_workdir)
             measured_data.add_measurement(metric["name"], sha1, timestamp, value)
 
