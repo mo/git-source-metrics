@@ -109,7 +109,8 @@ def save_data_jscopy(all_dataset_configs, selected_commits, measured_data, jsdat
                 jsdatafile.write("            'name': '%s',\n" % metric["title"].replace("'", r"\'"))
                 jsdatafile.write("            'data': [")
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))
-                series_data = filter(lambda (sha1, datapoint): sha1 in selected_sha1s, series_data)
+                if not args.include_all_measured_sha1s:
+                    series_data = filter(lambda (sha1, datapoint): sha1 in selected_sha1s, series_data)
                 for idx, (sha1, datapoint) in enumerate(series_data):
                     if idx:
                         jsdatafile.write("                     ")
@@ -177,6 +178,7 @@ if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument("--quiet", action="store_true")
+        parser.add_argument("--include-all-measured-sha1s", action="store_true")
         args = parser.parse_args()
         main()
     except KeyboardInterrupt:
