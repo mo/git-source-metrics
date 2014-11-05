@@ -29,7 +29,11 @@ def fetch_latest_code(git_repo):
         subprocess.check_call("git fetch -q", cwd=git_workdir, shell=True)
 
 def git_reset_to(git_workdir, sha1):
+    if not args.quiet:
+        print >> sys.stderr, "git cleaning"
     subprocess.check_call("git clean -dxff", cwd=git_workdir, shell=True)
+    if not args.quiet:
+        print >> sys.stderr, "git resetting to " + sha1
     subprocess.check_call("git reset -q --hard %s" % sha1, cwd=git_workdir, shell=True)
 
 def get_sparse_commits(git_workdir, gap_days):
@@ -165,8 +169,6 @@ def main():
     random.shuffle(todo_list)
 
     for (sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
-        if not args.quiet:
-            print >> sys.stderr, "Checking out code at: " + sha1
         git_reset_to(git_workdir, sha1)
 
         for metric in metrics_that_lack_data_for_this_sha1:
