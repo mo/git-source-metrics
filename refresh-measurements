@@ -13,18 +13,18 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_DIR = "~/.git-source-metrics/"
 CODE_CACHE_DIR = "~/.git-source-metrics/code/"
 
-def local_workingdir(git_repo):
+def local_workingdir(git_url):
     code_cache_dir = os.path.expanduser(CODE_CACHE_DIR)
     if not os.path.exists(code_cache_dir):
         os.makedirs(code_cache_dir)
-    working_dirname = filter(str.isalnum, git_repo)
+    working_dirname = filter(str.isalnum, git_url)
     working_dir_path = os.path.join(code_cache_dir, working_dirname)
     return working_dir_path
 
-def fetch_latest_code(git_repo):
-    git_workdir = local_workingdir(git_repo)
+def fetch_latest_code(git_url):
+    git_workdir = local_workingdir(git_url)
     if not os.path.exists(git_workdir):
-        subprocess.check_call("git clone %s %s" % (git_repo, git_workdir), shell=True)
+        subprocess.check_call("git clone %s %s" % (git_url, git_workdir), shell=True)
     else:
         subprocess.check_call("git fetch -q", cwd=git_workdir, shell=True)
 
@@ -42,7 +42,7 @@ def get_sparse_commits(git_workdir, gap_days):
     git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True)
     sha1_and_timestamp_list = git_log_output.splitlines()
 
-    all_xtick_sha1s = []
+    all_xticks = {}
     last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
 
     while len(sha1_and_timestamp_list) > 0:
@@ -56,72 +56,78 @@ def get_sparse_commits(git_workdir, gap_days):
                 print "WARNING: commit with sha1 %s looks invalid, ignoring." % sha1
             continue
         commit_date = datetime.datetime.fromtimestamp(int(timestamp))
+        if commit_date.year < args.ignore_commits_before_year:
+            print "WARNING: commit with sha1 %s is too old, ignoring." % sha1
+            continue
         if commit_date < last_tick_commit_date:
             if not args.quiet:
                 print "WARNING: commit with sha1 %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % sha1
             continue
         if (commit_date - last_tick_commit_date).days >= gap_days:
-            all_xtick_sha1s.append((sha1, timestamp))
+            all_xticks[timestamp] = sha1
             last_tick_commit_date = commit_date
 
-    return all_xtick_sha1s
+    return all_xticks
 
 def measure_metric(metric, git_workdir):
     return int(subprocess.check_output(metric["cmd"], cwd=git_workdir, shell=True).strip())
 
 class MeasuredData(object):
     def __init__(self):
-        self.metric_datapoints = {}
+        # datapoints is a dict in which repo_name   maps to a dict,
+        #                      in which metric_name maps to a dict,
+        #                      in which sha1        maps to a dict,
+        #                      that contains "timestamp" and "value".
+        self.datapoints = {}
 
     def load_from_file(self, filename):
-        self.metric_datapoints = eval(open(filename).read())
+        self.datapoints = eval(open(filename).read())
 
     def save_to_file(self, filename):
-        string_data = pprint.pformat(self.metric_datapoints)
+        string_data = pprint.pformat(self.datapoints)
         file_dir = os.path.dirname(filename)
         if not os.path.exists(file_dir):
             os.makedirs(file_dir)
         with open(filename, "w") as fil:
             fil.write(string_data)
 
-    def get_metric_data(self, metric_name):
-        return self.metric_datapoints.setdefault(metric_name, {})
+    def get_repo_metric_dict(self, repo_name, metric_name):
+        return self.datapoints.setdefault(repo_name, {}).setdefault(metric_name, {})
 
-    def is_measured(self, metric_name, sha1):
-        return sha1 in self.get_metric_data(metric_name)
+    def is_measured(self, repo_name, sha1, metric_name):
+        return sha1 in self.get_repo_metric_dict(repo_name, metric_name)
 
-    def add_measurement(self, metric_name, sha1, timestamp, value):
+    def add_measurement(self, repo_name, sha1, timestamp, metric_name, value):
+        metric_dict = self.get_repo_metric_dict(repo_name, metric_name)
         datapoint = {
-            "sha1": sha1,
             "timestamp": timestamp,
             "value": value,
         }
-        metric_data = self.get_metric_data(metric_name)
-        metric_data[sha1] = datapoint
+        metric_dict[sha1] = datapoint
 
-def save_data_jscopy(all_dataset_configs, selected_commits, measured_data, jsdata_filename):
+def save_data_jscopy(all_charts, all_metrics, selected_commits, measured_data, jsdata_filename):
     with open(jsdata_filename, "w") as jsdatafile:
-        jsdatafile.write("jsdata = {\n")
-        selected_sha1s = [sha1 for (sha1, timestamp) in selected_commits]
-        for dataset_name, dataset_config in all_dataset_configs.iteritems():
-            jsdatafile.write("    '%s': {\n" % dataset_name)
-            jsdatafile.write("        'title': '%s',\n" % dataset_config["title"])
-            jsdatafile.write("        'series': [\n")
-            for metric in dataset_config["metrics"]:
-                series_data = measured_data.get_metric_data(metric["name"])
+        jsdatafile.write("all_chart_data = {\n")
+        for chart_name, chart_config in all_charts.iteritems():
+            jsdatafile.write("    '%s': {\n" % chart_name)
+            jsdatafile.write("        'chart_title': '%s',\n" % chart_config["chart_title"])
+            jsdatafile.write("        'chart_series': [\n")
+            for series in chart_config["chart_series"]:
                 jsdatafile.write("        {\n")
-                jsdatafile.write("            'metric': '%s',\n" % metric["name"])
-                jsdatafile.write("            'name': '%s',\n" % metric["title"].replace("'", r"\'"))
+                metric_title = all_metrics[series["metric"]]["title"].replace("'", r"\'")
+                jsdatafile.write("            'name': '%s in %s',\n" % (metric_title, series["repo"]))
+                jsdatafile.write("            'color': '%s',\n" % series["color"])
                 jsdatafile.write("            'data': [")
+                series_data = measured_data.get_repo_metric_dict(series["repo"], series["metric"])
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))
                 if not args.include_all_measured_sha1s:
-                    series_data = filter(lambda (sha1, datapoint): sha1 in selected_sha1s, series_data)
+                    repo_selected_sha1s = selected_commits[series["repo"]].values()
+                    series_data = filter(lambda (sha1, datapoint): sha1 in repo_selected_sha1s, series_data)
                 for idx, (sha1, datapoint) in enumerate(series_data):
                     if idx:
                         jsdatafile.write("                     ")
                     jsdatafile.write("{ 'x': %s, 'y': %s },\n" % (datapoint["timestamp"], datapoint["value"]))
                 jsdatafile.write("            ],\n")
-                jsdatafile.write("            'color': '%s',\n" % metric["color"])
                 jsdatafile.write("        },\n")
             jsdatafile.write("        ],\n")
             jsdatafile.write("    },\n")
@@ -129,8 +135,8 @@ def save_data_jscopy(all_dataset_configs, selected_commits, measured_data, jsdat
 
         jsdatafile.write("\n")
         jsdatafile.write("timestamp_to_sha1 = {\n")
-        if len(selected_commits) > 0:
-            for sha1, timestamp in selected_commits:
+        for repo_name, repo_selected_commits in selected_commits.iteritems():
+            for timestamp, sha1 in repo_selected_commits.iteritems():
                 jsdatafile.write("    %s: '%s',\n" % (timestamp, sha1))
         jsdatafile.write("}\n")
 
@@ -139,54 +145,70 @@ def save_data_jscopy(all_dataset_configs, selected_commits, measured_data, jsdat
 def main():
     config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
 
-    jsdata_filename = os.path.join(SCRIPT_DIR, "..", "data", "jsdata.js")
+    jsdata_filename = os.path.join(SCRIPT_DIR, "..", "all_chart_data.js")
 
-    data_filename = os.path.join(SCRIPT_DIR, "..", "data", "data.pyon")
+    data_filename = os.path.join(SCRIPT_DIR, "..", "data.pyon")
     if os.path.exists(data_filename):
         measured_data = MeasuredData()
         measured_data.load_from_file(data_filename)
     else:
         measured_data = MeasuredData()
 
-    if not args.quiet:
-        print >> sys.stderr, "Fetching the latest code..."
-    fetch_latest_code(config["git_repo"])
-    git_workdir = local_workingdir(config["git_repo"])
-    if not args.quiet:
-        print >> sys.stderr, "Making list of SHA1s to measure..."
-    selected_commits = get_sparse_commits(git_workdir, config["tick_gap_days"])
+    if not args.skip_fetch:
+        for repo_name, repo in config["git_repos"].iteritems():
+            if not args.quiet:
+                print >> sys.stderr, "Fetching the latest code from repo: " + repo_name
+            fetch_latest_code(repo["git_url"])
+
+    selected_commits = {}
+    for repo_name, repo in config["git_repos"].iteritems():
+        git_workdir = local_workingdir(repo["git_url"])
+        if not args.quiet:
+            print >> sys.stderr, "Making list of SHA1s to measure in repo: " + repo_name
+        selected_commits[repo_name] = get_sparse_commits(git_workdir, repo["tick_gap_days"])
+
+    repo_to_metrics_map = {}
+    for chart_name, chart in config["charts"].iteritems():
+        for series in chart["chart_series"]:
+            repo_to_metrics_map.setdefault(series["repo"], []).append(series["metric"])
 
     todo_list = []
-    for sha1, timestamp in selected_commits:
-        metrics_that_lack_data_for_this_sha1 = []
-        for dataset_name, dataset_config in config["datasets"].iteritems():
-            for metric in dataset_config["metrics"]:
-                if not measured_data.is_measured(metric["name"], sha1):
-                    metrics_that_lack_data_for_this_sha1.append(metric)
-        if len(metrics_that_lack_data_for_this_sha1) > 0:
-            todo_list.append((sha1, timestamp, metrics_that_lack_data_for_this_sha1))
+    for repo_name, repo_metrics in repo_to_metrics_map.iteritems():
+        for timestamp, sha1 in selected_commits[repo_name].iteritems():
+            metrics_that_lack_data_for_this_sha1 = []
+            for metric_name in repo_metrics:
+                if not measured_data.is_measured(repo_name, sha1, metric_name):
+                    metrics_that_lack_data_for_this_sha1.append(metric_name)
+            if len(metrics_that_lack_data_for_this_sha1) > 0:
+                todo_list.append((repo_name, sha1, timestamp, metrics_that_lack_data_for_this_sha1))
 
     random.shuffle(todo_list)
 
-    for (sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
+    for (repo_name, sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
+        git_workdir = local_workingdir(config["git_repos"][repo_name]["git_url"])
         git_reset_to(git_workdir, sha1)
 
-        for metric in metrics_that_lack_data_for_this_sha1:
+        for metric_name in metrics_that_lack_data_for_this_sha1:
             if not args.quiet:
-                print >> sys.stderr, "measuring: %s (%s)" % (sha1, metric["name"])
-            value = measure_metric(metric, git_workdir)
-            measured_data.add_measurement(metric["name"], sha1, timestamp, value)
+                print >> sys.stderr, "measuring: %s (%s)" % (sha1, metric_name)
+            value = measure_metric(config["metrics"][metric_name], git_workdir)
+            measured_data.add_measurement(repo_name, sha1, timestamp, metric_name, value)
 
         measured_data.save_to_file(data_filename)
-        save_data_jscopy(config["datasets"], selected_commits, measured_data, jsdata_filename)
+        save_data_jscopy(config["charts"], config["metrics"], selected_commits, measured_data, jsdata_filename)
 
     else:
-        save_data_jscopy(config["datasets"], selected_commits, measured_data, jsdata_filename)
+        save_data_jscopy(config["charts"], config["metrics"], selected_commits, measured_data, jsdata_filename)
 
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument("--quiet", action="store_true")
+        parser.add_argument("--skip-fetch", action="store_true", help="don't call 'git fetch', just process what is available locally (for debugging only)")
+        # Ignoring commits before year 1990 because golang repo starts with a
+        # few prank commits from the 70ties and this compressed the meaningful
+        # data visually in the finished chart.
+        parser.add_argument("--ignore-commits-before-year", type=int, default=2000)
         parser.add_argument("--include-all-measured-sha1s", action="store_true")
         args = parser.parse_args()
         main()

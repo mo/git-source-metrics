@@ -8,7 +8,7 @@
 <script src="thirdparty/jquery-ui/jquery-ui-1.11.2/jquery-ui.min.js"></script>
 
 <script src="utilities.js"></script>
-<script src="../../data/jsdata.js"></script>
+<script src="../../all_chart_data.js"></script>
 
 <style>
 #chart_container {
@@ -38,13 +38,13 @@
     vertical-align: top;
     margin: 0 0 0 10px;
 }
-#dataset_select {
+#chart_select {
     width: 1100px;
     margin-left: 100px;
 }
 </style>
 
-<select id="dataset_select" onchange="javascript:window.location='?dataset='+this.value">
+<select id="chart_select" onchange="javascript:window.location='?chart='+this.value">
 </select>
 <br><br>
 
@@ -58,25 +58,25 @@
 
 <script>
 var params = get_url_params();
-if (!(params["dataset"] in jsdata) && Object.keys(jsdata).length > 0) {
-    params["dataset"] = Object.keys(jsdata)[0];
+if (!(params["chart"] in all_chart_data) && Object.keys(all_chart_data).length > 0) {
+    params["chart"] = Object.keys(all_chart_data)[0];
 }
 
-for (key in jsdata) {
+for (key in all_chart_data) {
     var option = document.createElement("option");
-    option.innerHTML = jsdata[key].title;
+    option.innerHTML = all_chart_data[key]["chart_title"];
     option.value = key;
-    document.getElementById("dataset_select").appendChild(option);
+    document.getElementById("chart_select").appendChild(option);
 }
-document.getElementById('dataset_select').value = params["dataset"]
-document.getElementById('dataset_select').focus()
+document.getElementById('chart_select').value = params["chart"]
+document.getElementById('chart_select').focus()
 
 var graph = new Rickshaw.Graph( {
         element: document.querySelector("#chart"),
         width: 1100,
         height: 500,
         stack: false,
-        series: jsdata[params["dataset"]].series
+        series: all_chart_data[params["chart"]]["chart_series"]
 } );
 graph.setRenderer('line');
 graph.render();
@@ -113,7 +113,9 @@ var shelving = new Rickshaw.Graph.Behavior.Series.Toggle({
 var hoverDetail = new Rickshaw.Graph.HoverDetail( {
     graph: graph,
     xFormatter: function(x) {
-        return (new Date(x*1000)).toISOString().substring(0, 10) + " (" + timestamp_to_sha1[x] + ")"
+        var commit_date = (new Date(x*1000)).toISOString().substring(0, 10)
+        var sha1 = timestamp_to_sha1[x]
+        return commit_date + " (" + sha1 + ")"
     },
     yFormatter: function(y) { return y }
 } );
