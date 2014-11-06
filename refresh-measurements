@@ -68,8 +68,18 @@ def get_sparse_commits(repo_name, git_workdir, gap_days):
 
     return all_xticks
 
-def measure_metric(metric, git_workdir):
-    return int(subprocess.check_output(metric["cmd"], cwd=git_workdir, shell=True).strip())
+def measure_metric(metric, git_workdir, sha1, timestamp):
+    cmd_params_dict = {
+        "sha1": sha1,
+        "timestamp": timestamp,
+    }
+    metric_command = metric["cmd"] % cmd_params_dict
+    if args.debug:
+        print >>sys.stderr, "DEBUG: " + metric_command
+    value = subprocess.check_output(metric_command, cwd=git_workdir, shell=True).strip()
+    if args.debug:
+        print >>sys.stderr, "DEBUG: " + repr(value)
+    return int(value)
 
 class MeasuredData(object):
     def __init__(self):
@@ -185,12 +195,20 @@ def main():
 
     for (repo_name, sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
         git_workdir = local_workingdir(config["git_repos"][repo_name]["git_url"])
-        git_reset_to(repo_name, git_workdir, sha1)
+
+        atleast_one_metric_needs_a_reset_workdir = False
+        for metric_name in metrics_that_lack_data_for_this_sha1:
+            if config["metrics"][metric_name].get("workdir", True):
+                atleast_one_metric_needs_a_reset_workdir = True
+                break
+
+        if atleast_one_metric_needs_a_reset_workdir:
+            git_reset_to(repo_name, git_workdir, sha1)
 
         for metric_name in metrics_that_lack_data_for_this_sha1:
             if not args.quiet:
                 print >> sys.stderr, "%s: measuring %s (%s)" % (repo_name, sha1, metric_name)
-            value = measure_metric(config["metrics"][metric_name], git_workdir)
+            value = measure_metric(config["metrics"][metric_name], git_workdir, sha1, timestamp)
             measured_data.add_measurement(repo_name, sha1, timestamp, metric_name, value)
 
         measured_data.save_to_file(data_filename)
@@ -203,6 +221,7 @@ if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument("--quiet", action="store_true")
+        parser.add_argument("--debug", action="store_true")
         parser.add_argument("--skip-fetch", action="store_true", help="don't call 'git fetch', just process what is available locally (for debugging only)")
         # Ignoring commits before year 1990 because golang repo starts with a
         # few prank commits from the 70ties and this compressed the meaningful
