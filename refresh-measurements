@@ -2,6 +2,7 @@
 
 import os
 import sys
+import sets
 import stat
 import random
 import pprint
@@ -36,8 +37,10 @@ def git_reset_to(repo_name, git_workdir, sha1):
         print >> sys.stderr, "%s: git resetting to %s" % (repo_name, sha1)
     subprocess.check_call("git reset -q --hard %s" % sha1, cwd=git_workdir, shell=True)
 
-def get_sparse_commits(repo_name, git_workdir, gap_days):
-    git_log_cmd = "git log --first-parent --pretty=format:'%H %ct' origin/master"
+def get_sparse_commits(repo_name, repo_config):
+    branch = "origin/" + repo_config.get("branch", "master")
+    git_workdir = local_workingdir(repo_config["git_url"])
+    git_log_cmd = "git log --first-parent --pretty=format:'%H %ct' " + branch
     git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True)
     sha1_and_timestamp_list = git_log_output.splitlines()
 
@@ -62,7 +65,7 @@ def get_sparse_commits(repo_name, git_workdir, gap_days):
             if not args.quiet:
                 print "WARNING: commit with sha1 %s in repo %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % (sha1, repo_name)
             continue
-        if (commit_date - last_tick_commit_date).days >= gap_days:
+        if (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
             all_xticks[timestamp] = sha1
             last_tick_commit_date = commit_date
 
@@ -163,18 +166,20 @@ def main():
     else:
         measured_data = MeasuredData()
 
+    all_git_urls = sets.Set()
     if not args.skip_fetch:
-        for repo_name, repo in config["git_repos"].iteritems():
+        for _, repo in config["git_repos"].iteritems():
+            all_git_urls.add(repo["git_url"])
+        for git_url in all_git_urls:
             if not args.quiet:
-                print >> sys.stderr, "Fetching the latest code from repo: " + repo_name
-            fetch_latest_code(repo["git_url"])
+                print >> sys.stderr, "Fetching the latest code from repo: " + git_url
+            fetch_latest_code(git_url)
 
     selected_commits = {}
-    for repo_name, repo in config["git_repos"].iteritems():
-        git_workdir = local_workingdir(repo["git_url"])
+    for repo_name, repo_config in config["git_repos"].iteritems():
         if not args.quiet:
             print >> sys.stderr, "Making list of SHA1s to measure in repo: " + repo_name
-        selected_commits[repo_name] = get_sparse_commits(repo_name, git_workdir, repo["tick_gap_days"])
+        selected_commits[repo_name] = get_sparse_commits(repo_name, repo_config)
 
     repo_to_metrics_map = {}
     for chart_name, chart in config["charts"].iteritems():
