@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+
+# Normal "git log --since FOO" follows all parents and stops when it finds a
+# commit with commit date older than FOO. In reality it's quite common that
+# people commit with incorrect time configured on their machines, or they
+# might use env variable COMMITTER_DATE="" etc. This script is a variant of
+# the normal "git log --since" that waits until it has seen "N different devs
+# commit with commit dates older than FOO" before it stops printing.
+
+import sys
+import sets
+import argparse
+import subprocess
+
+def has_N_unique_authors(author_count, list):
+    unique_authors = sets.Set()
+    for (_, _, author) in list:
+        unique_authors.add(author)
+        if len(unique_authors) >= author_count:
+            return True
+    return False
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('since', metavar='UNIX_TIMESTAMP', type=int,
+                    help=('commits older than this unix timestamp will not be '
+                          'printed unless it looks like the commit in question '
+                          'was done by someone whose clock was not set '
+                          'correctly vis-a-vis other committers in this tree'))
+parser.add_argument('sha1', metavar='SHA1', type=str,
+                    help='sha1 where git-log should start')
+parser.add_argument('--authoritative-dev-count', metavar='N', type=int, nargs=1,
+                    default=3,
+                    help=('if commits from N different devs have commit date '
+                          'older than UNIX_TIMESTAMP and there are no commits '
+                          'with commit date after UNIX_TIMESTAMP in between, '
+                          'then surmise that A) their clocks where correctly '
+                          'configured and that B) there won''t be any more '
+                          'commits with commit date later than UNIX_TIMESTAMP '
+                          'if we keep following commit parents further along. '
+                          'Consequently, exit this script.'))
+args = parser.parse_args()
+
+cut_off_date = int(args.since)
+held_back = []
+
+proc = subprocess.Popen("git log --pretty='%%ct %%H %%an <%%ae>' %s" % args.sha1,
+                        stdout=subprocess.PIPE, bufsize=1, shell=True)
+for line in iter(proc.stdout.readline, b''):
+    current_timestamp, current_sha1, current_author = line.strip().split(" ", 2)
+    if int(current_timestamp) < cut_off_date:
+        held_back.append((current_timestamp, current_sha1, current_author))
+        if has_N_unique_authors(args.authoritative_dev_count, held_back):
+            sys.exit(0)
+    else:
+        for (timestamp, sha1, author) in held_back:
+            print "%s %s %s" % (timestamp, sha1, author)
+        held_back = []
+        print "%s %s %s" % (current_timestamp, current_sha1, current_author)
+
+(stdoutdata, stderrdata) = proc.communicate()
+assert stdoutdata == '' or stdoutdata is None
+assert stderrdata == '' or stderrdata is None
