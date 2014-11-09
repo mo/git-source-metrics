@@ -1,46 +1,51 @@
 {
-    "git_repo": "INSERT_GIT_URL_HERE",
-    "tick_gap_days": 5,
-    "datasets": {
-        "grep_dataset": {
-            "title": "grep hits for various regex",
-            "metrics": [
-                {
-                    "name": "grep_import",
-                    "cmd": "git grep import | wc -l",
-                    "title": "grep hits for 'import'",
-                    "color": "blue",
-                },
-                {
-                    "name": "grep_if",
-                    "cmd": "git grep if | wc -l",
-                    "title": "grep hits for 'if'",
-                    "color": "green",
-                },
+    "charts": {
+        "major_browsers_dev_count": {
+            "chart_title": "\"major browsers\" active dev counts",
+            "chart_series": [
+                { "repo": "mozilla-central", "metric": "active_authors_60days", "color": "green" },
+                { "repo": "chromium/src", "metric": "active_authors_60days", "color": "blue" },
+            ],
+            "annotations": [ "browser_dates" ],
+        },
+        "major_browsers_commit_rate": {
+            "chart_title": "\"major browsers\" commit rate",
+            "chart_series": [
+                { "repo": "mozilla-central", "metric": "commit_count_60days", "color": "green" },
+                { "repo": "chromium/src", "metric": "commit_count_60days", "color": "blue" },
             ]
         },
-        "active_authors": {
-            "title": "number of unique git authors seen in X last days",
-            "metrics": [
-                {
-                    "name": "active_authors_7days",
-                    "cmd": "git log --pretty=format:%an --since $(($(git log --pretty=format:%ct -1)-7*60*60*24)) | sort | uniq | wc -l",
-                    "title": "active authors last 7 days",
-                    "color": "purple",
-                },
-                {
-                    "name": "active_authors_30days",
-                    "cmd": "git log --pretty=format:%an --since $(($(git log --pretty=format:%ct -1)-30*60*60*24)) | sort | uniq | wc -l",
-                    "title": "active authors last 30 days",
-                    "color": "blue",
-                },
-                {
-                    "name": "active_authors_90days",
-                    "cmd": "git log --pretty=format:%an --since $(($(git log --pretty=format:%ct -1)-90*60*60*24)) | sort | uniq | wc -l",
-                    "title": "active authors last 90 days",
-                    "color": "green",
-                },
-            ]
+    },
+    "annotation_sets": {
+        "browser_dates": {
+            "2001-10-01": "IE 6.0",
+            "2002-09-23": "Firefox initial release",
+            "2004-11-09": "Firefox 1.0",
+            "2008-09-02": "The first Google Chrome beta is released.",
+            "2013-04-03": "Google announces intent to fork WebKit and create Blink",
+            "2012-02-07": "Google announces Chrome for Android",
+        }
+    },
+    "git_repos": {
+        "mozilla-central": {
+            "git_url": "https://github.com/mozilla/gecko-dev.git",
+            "tick_gap_days": 7,
+        },
+        "chromium/src": {
+            "git_url": "https://chromium.googlesource.com/chromium/src",
+            "tick_gap_days": 7,
+        },
+    },
+    "metrics": {
+        "active_authors_60days": {
+            "cmd": "git-log-robust-since $((%(timestamp)s-60*60*60*24)) %(sha1)s | cut -f 3- -d ' ' | sort | uniq | wc -l",
+            "title": "active authors last 60 days",
+            "workdir": False,
+        },
+        "commit_count_60days": {
+            "cmd": "git-log-robust-since $((%(timestamp)s-60*60*60*24)) %(sha1)s | wc -l",
+            "title": "commit count last 60 days",
+            "workdir": False,
         },
     },
 }
