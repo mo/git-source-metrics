@@ -33,6 +33,10 @@
 #range_slider {
     margin-left: 100px;
 }
+#annotation_timeline {
+    margin-left: 100px;
+    margin-bottom: 20px;
+}
 #legend {
     display: inline-block;
     vertical-align: top;
@@ -52,6 +56,7 @@
         <div id="y_axis"></div>
         <div id="chart"></div>
         <div id="x_axis"></div>
+        <div id="annotation_timeline"></div>
         <div id="range_slider"></div>
 </div>
 <div id="legend"></div>
@@ -125,5 +130,16 @@ var slider = new Rickshaw.Graph.RangeSlider({
     graph: graph,
     element: document.querySelector('#range_slider')
 });
+
+var annotator = new Rickshaw.Graph.Annotate({
+    graph: graph,
+    element: document.querySelector('#annotation_timeline')
+});
+
+var annotations = all_chart_data[params["chart"]]["chart_annotations"]
+for (timestamp in annotations) {
+    annotator.add(timestamp, annotations[timestamp]);
+}
+annotator.update();
 
 </script>
