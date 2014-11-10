@@ -67,7 +67,12 @@ if (!(params["chart"] in all_chart_data) && Object.keys(all_chart_data).length >
     params["chart"] = Object.keys(all_chart_data)[0];
 }
 
-for (key in all_chart_data) {
+var chart_keys_sorted_by_title = Object.keys(all_chart_data).sort(function(key1, key2) {
+    return all_chart_data[key1]["chart_title"] < all_chart_data[key2]["chart_title"]
+});
+
+for (var idx = 0; idx < chart_keys_sorted_by_title.length; idx++) {
+    key = chart_keys_sorted_by_title[idx];
     var option = document.createElement("option");
     option.innerHTML = all_chart_data[key]["chart_title"];
     option.value = key;
