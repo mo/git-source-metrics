@@ -4,8 +4,10 @@ import os
 import sys
 import sets
 import stat
+import shutil
 import random
 import pprint
+import tempfile
 import argparse
 import datetime
 import subprocess
@@ -125,18 +127,19 @@ class MeasuredData(object):
 def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
     all_charts = config["charts"]
     all_metrics = config["metrics"]
-    with open(jsdata_filename, "w") as jsdatafile:
-        jsdatafile.write("all_chart_data = {\n")
+    jsdata_tempfile_oshandle, jsdata_tempfile_name = tempfile.mkstemp()
+    with open(jsdata_tempfile_name, "w") as jsdata_temp_file:
+        jsdata_temp_file.write("all_chart_data = {\n")
         for chart_name, chart_config in all_charts.iteritems():
-            jsdatafile.write("    '%s': {\n" % chart_name)
-            jsdatafile.write("        'chart_title': '%s',\n" % chart_config["chart_title"])
-            jsdatafile.write("        'chart_series': [\n")
+            jsdata_temp_file.write("    '%s': {\n" % chart_name)
+            jsdata_temp_file.write("        'chart_title': '%s',\n" % chart_config["chart_title"])
+            jsdata_temp_file.write("        'chart_series': [\n")
             for series in chart_config["chart_series"]:
-                jsdatafile.write("        {\n")
+                jsdata_temp_file.write("        {\n")
                 metric_title = all_metrics[series["metric"]]["title"].replace("'", r"\'")
-                jsdatafile.write("            'name': '%s in %s',\n" % (metric_title, series["repo"]))
-                jsdatafile.write("            'color': '%s',\n" % series["color"])
-                jsdatafile.write("            'data': [")
+                jsdata_temp_file.write("            'name': '%s in %s',\n" % (metric_title, series["repo"]))
+                jsdata_temp_file.write("            'color': '%s',\n" % series["color"])
+                jsdata_temp_file.write("            'data': [")
                 series_data = measured_data.get_repo_metric_dict(series["repo"], series["metric"])
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))
                 if not args.include_all_measured_sha1s:
@@ -144,29 +147,32 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
                     series_data = filter(lambda (sha1, datapoint): sha1 in repo_selected_sha1s, series_data)
                 for idx, (sha1, datapoint) in enumerate(series_data):
                     if idx:
-                        jsdatafile.write("                     ")
-                    jsdatafile.write("{ 'x': %s, 'y': %s },\n" % (datapoint["timestamp"], datapoint["value"]))
-                jsdatafile.write("            ],\n")
-                jsdatafile.write("        },\n")
-            jsdatafile.write("        ],\n")
-            jsdatafile.write("        'chart_annotations': {\n")
+                        jsdata_temp_file.write("                     ")
+                    jsdata_temp_file.write("{ 'x': %s, 'y': %s },\n" % (datapoint["timestamp"], datapoint["value"]))
+                jsdata_temp_file.write("            ],\n")
+                jsdata_temp_file.write("        },\n")
+            jsdata_temp_file.write("        ],\n")
+            jsdata_temp_file.write("        'chart_annotations': {\n")
             if "annotations" in chart_config:
                 for annotation_set_name in chart_config["annotations"]:
                     annotations = config["annotation_sets"][annotation_set_name]
                     for date, description in annotations.iteritems():
                         timestamp = datetime.datetime.strptime(date, "%Y-%m-%d").strftime("%s")
-                        jsdatafile.write("        '%s': '%s',\n" % (timestamp, description))
-            jsdatafile.write("        },\n")
-            jsdatafile.write("    },\n")
-        jsdatafile.write("}\n")
+                        jsdata_temp_file.write("        '%s': '%s',\n" % (timestamp, description))
+            jsdata_temp_file.write("        },\n")
+            jsdata_temp_file.write("    },\n")
+        jsdata_temp_file.write("}\n")
 
-        jsdatafile.write("\n")
-        jsdatafile.write("timestamp_to_sha1 = {\n")
+        jsdata_temp_file.write("\n")
+        jsdata_temp_file.write("timestamp_to_sha1 = {\n")
         for repo_name, repo_selected_commits in selected_commits.iteritems():
             for timestamp, sha1 in repo_selected_commits.iteritems():
-                jsdatafile.write("    %s: '%s',\n" % (timestamp, sha1))
-        jsdatafile.write("}\n")
+                jsdata_temp_file.write("    %s: '%s',\n" % (timestamp, sha1))
+        jsdata_temp_file.write("}\n")
 
+    # when file is written, move it into place
+    os.close(jsdata_tempfile_oshandle)
+    shutil.move(jsdata_tempfile_name, jsdata_filename)
     os.chmod(jsdata_filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH)
 
 def main():
