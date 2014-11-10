@@ -105,6 +105,9 @@ class MeasuredData(object):
         with open(filename, "w") as fil:
             fil.write(string_data)
 
+    def clear_data_for_repo_metric(self, repo_name, metric_name):
+        self.datapoints[repo_name][metric_name] = {}
+
     def get_repo_metric_dict(self, repo_name, metric_name):
         return self.datapoints.setdefault(repo_name, {}).setdefault(metric_name, {})
 
@@ -178,6 +181,13 @@ def main():
     else:
         measured_data = MeasuredData()
 
+    if args.delete_data_for_metric:
+        for repo_name, repo_config in config["git_repos"].iteritems():
+            measured_data.clear_data_for_repo_metric(repo_name, args.delete_data_for_metric)
+        measured_data.save_to_file(data_filename)
+        print "Metric data deleted."
+        sys.exit(0)
+
     all_git_urls = sets.Set()
     if not args.skip_fetch:
         for _, repo in config["git_repos"].iteritems():
@@ -245,6 +255,7 @@ if __name__ == '__main__':
         # data visually in the finished chart.
         parser.add_argument("--ignore-commits-before-year", type=int, default=1990)
         parser.add_argument("--include-all-measured-sha1s", action="store_true")
+        parser.add_argument("--delete-data-for-metric", type=str)
         args = parser.parse_args()
         main()
     except KeyboardInterrupt:
