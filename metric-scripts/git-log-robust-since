@@ -48,6 +48,14 @@ proc = subprocess.Popen("git log --pretty='%%ct %%H %%an <%%ae>' %s" % args.sha1
                         stdout=subprocess.PIPE, bufsize=1, shell=True)
 for line in iter(proc.stdout.readline, b''):
     current_timestamp, current_sha1, current_author = line.strip().split(" ", 2)
+    try:
+        current_timestamp = int(current_timestamp)
+    except:
+        # For example 281a10c and e589091 etc in https://github.com/mozilla/gecko-dev
+        # git fails to print --pretty=format:"%ct %H" properly even though
+        # the commits have timestamps. Seems like git 1.7.10.4 has a problem
+        # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
+        current_timestamp = 0
     if int(current_timestamp) < cut_off_date:
         held_back.append((current_timestamp, current_sha1, current_author))
         if has_N_unique_authors(args.authoritative_dev_count, held_back):
