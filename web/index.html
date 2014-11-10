@@ -92,13 +92,13 @@ var graph = new Rickshaw.Graph( {
 graph.setRenderer('line');
 graph.render();
 
-function xFormatter(x) {
+function timestampToDateString(x) {
     return (new Date(x*1000)).toISOString().substring(0, 10)
 }
 
 var x_axis = new Rickshaw.Graph.Axis.X( {
     graph: graph,
-    tickFormat: xFormatter,
+    tickFormat: timestampToDateString,
     orientation: "bottom",
     element: document.getElementById('x_axis'),
 } );
@@ -124,7 +124,7 @@ var shelving = new Rickshaw.Graph.Behavior.Series.Toggle({
 var hoverDetail = new Rickshaw.Graph.HoverDetail( {
     graph: graph,
     xFormatter: function(x) {
-        var commit_date = (new Date(x*1000)).toISOString().substring(0, 10)
+        var commit_date = timestampToDateString(x)
         var sha1 = timestamp_to_sha1[x]
         return commit_date + " (" + sha1 + ")"
     },
@@ -143,7 +143,7 @@ var annotator = new Rickshaw.Graph.Annotate({
 
 var annotations = all_chart_data[params["chart"]]["chart_annotations"]
 for (timestamp in annotations) {
-    annotator.add(timestamp, annotations[timestamp]);
+    annotator.add(timestamp, timestampToDateString(timestamp) + ": " + annotations[timestamp]);
 }
 annotator.update();
 
