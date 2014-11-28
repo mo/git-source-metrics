@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+
+import re
+import argparse
+import subprocess
+
+parser = argparse.ArgumentParser()
+parser.add_argument("start_sha1", metavar="START_SHA1")
+parser.add_argument("end_sha1", metavar="END_SHA1")
+args = parser.parse_args()
+
+git_diff_cmd = "git diff --shortstat %s %s" % (args.start_sha1, args.end_sha1)
+shortstat = subprocess.check_output(git_diff_cmd, shell=True)
+
+insertions = int(re.search("([0-9]+) insertions", shortstat).group(1))
+deletions = int(re.search("([0-9]+) deletions", shortstat).group(1))
+
+print str(insertions + deletions)

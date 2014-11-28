@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+import sys
+import sets
+import argparse
+import subprocess
+import datetime
+
+def has_N_unique_authors(author_count, list):
+    unique_authors = sets.Set()
+    for (_, author) in list:
+        unique_authors.add(author)
+        if len(unique_authors) >= author_count:
+            return True
+    return False
+
+
+parser = argparse.ArgumentParser(
+    description=("finds the first sha1 which is older than the specified "
+                 "--timestamp while not getting tricked by commits that was "
+                 "done with incorrect/deviant system clock settings"))
+parser.add_argument('--debug', action="store_true")
+parser.add_argument('timestamp', metavar='UNIX_TIMESTAMP', type=int,
+                    help=('skip commits newer than this unix timestamp'))
+parser.add_argument('sha1', metavar='SHA1', type=str,
+                    help="search backwards start at this sha1")
+parser.add_argument('--authoritative-dev-count', metavar='N', type=int, nargs=1,
+                    default=3,
+                    help=('if commits from N different devs have commit date '
+                          'older than UNIX_TIMESTAMP and there are no commits '
+                          'with commit date after UNIX_TIMESTAMP in between, '
+                          'then surmise that A) their clocks where correctly '
+                          'configured and that B) there won''t be any more '
+                          'commits with commit date later than UNIX_TIMESTAMP '
+                          'if we keep following commit parents further along. '
+                          'Consequently, exit this script.'))
+args = parser.parse_args()
+
+cut_off_date = int(args.timestamp)
+held_back = []
+
+proc = subprocess.Popen("git log --first-parent --pretty='%%ct %%H %%an <%%ae>' %s" % args.sha1,
+                        stdout=subprocess.PIPE, bufsize=1, shell=True)
+for line in iter(proc.stdout.readline, b''):
+    current_timestamp, current_sha1, current_author = line.strip().split(" ", 2)
+    try:
+        current_timestamp = int(current_timestamp)
+    except:
+        # For example 281a10c and e589091 etc in https://github.com/mozilla/gecko-dev
+        # git fails to print --pretty=format:"%ct %H" properly even though
+        # the commits have timestamps. Seems like git 1.7.10.4 has a problem
+        # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
+        current_timestamp = 0
+    if args.debug:
+        print current_sha1 + ": " + str(datetime.datetime.fromtimestamp(current_timestamp)) + " < " + str(datetime.datetime.fromtimestamp(cut_off_date)) + " is " + str(int(current_timestamp) < cut_off_date)
+    if int(current_timestamp) < cut_off_date:
+        held_back.append((current_sha1, current_author))
+        if has_N_unique_authors(args.authoritative_dev_count, held_back):
+            print held_back[0][0]
+            sys.exit(0)
+    else:
+        held_back = []
+
+print held_back[0][0]
+
+(stdoutdata, stderrdata) = proc.communicate()
+assert stdoutdata == '' or stdoutdata is None
+assert stderrdata == '' or stderrdata is None
