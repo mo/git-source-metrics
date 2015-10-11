@@ -107,8 +107,13 @@ class MeasuredData(object):
         with open(filename, "w") as fil:
             fil.write(string_data + "\n")
 
+    def clear_data_for_repo(self, repo_name):
+        self.datapoints.pop(repo_name, None)
+
     def clear_data_for_repo_metric(self, repo_name, metric_name):
-        self.datapoints[repo_name][metric_name] = {}
+        repo_data = self.datapoints.get(repo_name)
+        if repo_data:
+            repo_data.pop(metric_name, None)
 
     def get_repo_metric_dict(self, repo_name, metric_name):
         return self.datapoints.setdefault(repo_name, {}).setdefault(metric_name, {})
@@ -187,11 +192,25 @@ def main():
     else:
         measured_data = MeasuredData()
 
-    if args.delete_data_for_metric:
-        for repo_name, repo_config in config["git_repos"].iteritems():
-            measured_data.clear_data_for_repo_metric(repo_name, args.delete_data_for_metric)
+    if args.delete_data_for_repo:
+        repo_name = args.delete_data_for_repo
+        if not repo_name in config["git_repos"]:
+            print "ERROR: no such repo name in config"
+            sys.exit(1)
+        measured_data.clear_data_for_repo(repo_name)
         measured_data.save_to_file(data_filename)
-        print "Metric data deleted."
+        print "All data for repo '%s' deleted." % repo_name
+        sys.exit(0)
+
+    if args.delete_data_for_metric:
+        metric_name = args.delete_data_for_metric
+        if not metric_name in config["metrics"]:
+            print "ERROR: no such metric name in config"
+            sys.exit(1)
+        for repo_name, repo_config in config["git_repos"].iteritems():
+            measured_data.clear_data_for_repo_metric(repo_name, metric_name)
+        measured_data.save_to_file(data_filename)
+        print "All data for metric '%s' deleted." % metric_name
         sys.exit(0)
 
     all_git_urls = sets.Set()
@@ -262,6 +281,7 @@ if __name__ == '__main__':
         parser.add_argument("--ignore-commits-before-year", metavar="YYYY", type=int, default=1990)
         parser.add_argument("--include-all-measured-sha1s", action="store_true")
         parser.add_argument("--delete-data-for-metric", metavar="METRIC_NAME", type=str)
+        parser.add_argument("--delete-data-for-repo", metavar="REPO_NAME", type=str)
         args = parser.parse_args()
         main()
     except KeyboardInterrupt:
