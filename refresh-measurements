@@ -4,6 +4,7 @@ import os
 import sys
 import sets
 import stat
+import time
 import shutil
 import random
 import pprint
@@ -24,12 +25,34 @@ def local_workingdir(git_url):
     working_dir_path = os.path.join(code_cache_dir, working_dirname)
     return working_dir_path
 
-def fetch_latest_code(git_url):
+def spawn_git_fetcher(git_url):
     git_workdir = local_workingdir(git_url)
     if not os.path.exists(git_workdir):
-        subprocess.check_call("git clone %s %s" % (git_url, git_workdir), shell=True)
+        git_proc = subprocess.Popen("git clone %s %s" % (git_url, git_workdir), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     else:
-        subprocess.check_call("git fetch -q", cwd=git_workdir, shell=True)
+        git_proc = subprocess.Popen("git fetch -q", stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=git_workdir, shell=True)
+    return (git_url, git_proc)
+
+# Launch one git process per repo (in parallel) to fetch the latest
+# code and then wait for all the processes to finish.
+def fetch_latest_code(all_git_urls):
+    longest_git_url_length = max([len(git_url) for git_url in all_git_urls])
+    remaining_procs = [spawn_git_fetcher(git_url) for git_url in all_git_urls]
+    while len(remaining_procs) > 0:
+        for (git_url, git_proc) in list(remaining_procs):
+            git_proc.poll()
+            if git_proc.returncode != None:
+                remaining_procs.remove((git_url, git_proc))
+                if git_proc.returncode == 0:
+                    if not args.quiet:
+                        print >> sys.stderr, "Finished fetching the latest code from repo: " + git_url.ljust(longest_git_url_length + 1),
+                        print >> sys.stderr, " (still waiting for %d more git processes to finish)" % len(remaining_procs)
+                else:
+                    print >> sys.stderr, git_proc.stdout.read().strip()
+                    print >> sys.stderr, git_proc.stderr.read().strip()
+                    print >> sys.stderr, "ERROR: Failed (see error above) to fetch the latest code from repo: " + git_url.ljust(longest_git_url_length + 1),
+                    print >> sys.stderr, " (still waiting for %d more git processes to finish)" % len(remaining_procs)
+        time.sleep(1)
 
 def git_reset_to(repo_name, git_workdir, sha1):
     if not args.quiet:
@@ -213,14 +236,9 @@ def main():
         print "All data for metric '%s' deleted." % metric_name
         sys.exit(0)
 
-    all_git_urls = sets.Set()
     if not args.skip_fetch:
-        for _, repo in config["git_repos"].iteritems():
-            all_git_urls.add(repo["git_url"])
-        for git_url in all_git_urls:
-            if not args.quiet:
-                print >> sys.stderr, "Fetching the latest code from repo: " + git_url
-            fetch_latest_code(git_url)
+        git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
+        fetch_latest_code(git_urls)
 
     selected_commits = {}
     for repo_name, repo_config in config["git_repos"].iteritems():
