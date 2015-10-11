@@ -105,7 +105,7 @@ class MeasuredData(object):
         if not os.path.exists(file_dir):
             os.makedirs(file_dir)
         with open(filename, "w") as fil:
-            fil.write(string_data)
+            fil.write(string_data + "\n")
 
     def clear_data_for_repo_metric(self, repo_name, metric_name):
         self.datapoints[repo_name][metric_name] = {}
