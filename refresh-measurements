@@ -236,6 +236,16 @@ def main():
         print "All data for metric '%s' deleted." % metric_name
         sys.exit(0)
 
+    if args.list_repos:
+        for repo_name in config["git_repos"]:
+            print repo_name
+        sys.exit(0)
+
+    if args.list_metrics:
+        for metric_name in config["metrics"]:
+            print metric_name
+        sys.exit(0)
+
     if not args.skip_fetch:
         git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
         fetch_latest_code(git_urls)
@@ -300,6 +310,8 @@ if __name__ == '__main__':
         parser.add_argument("--include-all-measured-sha1s", action="store_true")
         parser.add_argument("--delete-data-for-metric", metavar="METRIC_NAME", type=str)
         parser.add_argument("--delete-data-for-repo", metavar="REPO_NAME", type=str)
+        parser.add_argument("--list-repos", action="store_true")
+        parser.add_argument("--list-metrics", action="store_true")
         args = parser.parse_args()
         main()
     except KeyboardInterrupt:
