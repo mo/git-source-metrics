@@ -18,12 +18,16 @@
     },
     "annotation_sets": {
         "browser_dates": {
+            "1998-11-04": "KHTML created",
             "2001-10-01": "IE 6.0",
             "2002-09-23": "Firefox initial release",
+            "2003-01-07": "Apple forks KHTML, creating WebKit",
             "2004-11-09": "Firefox 1.0",
             "2008-09-02": "The first Google Chrome beta is released.",
-            "2013-04-03": "Google announces intent to fork WebKit and create Blink",
+            "2010-01-28": "First release of Firefox for Mobile (Fennec) on Nokia N900",
+            "2011-03-29": "First release of Firefox for Mobile (Fennec) for Android",
             "2012-02-07": "Google announces Chrome for Android",
+            "2013-04-03": "Google WebKit, creating Blink",
         }
     },
     "git_repos": {
