@@ -44,7 +44,7 @@ args = parser.parse_args()
 cut_off_date = int(args.since)
 held_back = []
 
-proc = subprocess.Popen("git log --pretty='%%ct %%H %%an <%%ae>' %s" % args.sha1,
+proc = subprocess.Popen("git log --pretty='%%ct %%H %%ae' %s" % args.sha1,
                         stdout=subprocess.PIPE, bufsize=1, shell=True)
 for line in iter(proc.stdout.readline, b''):
     current_timestamp, current_sha1, current_author = line.strip().split(" ", 2)
