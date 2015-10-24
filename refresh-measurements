@@ -222,8 +222,14 @@ def refresh_measurements(config, data_filename, measured_data, jsdata_filename):
     for repo_name, repo_metrics in repo_to_metrics_map.iteritems():
         for timestamp, sha1 in selected_commits[repo_name].iteritems():
             metrics_that_lack_data_for_this_sha1 = []
+            commit_timestamp = datetime.datetime.fromtimestamp(int(timestamp))
             for metric_name in repo_metrics:
-                if not measured_data.is_measured(repo_name, sha1, metric_name):
+                too_old = False
+                metric_start_date = config["metrics"][metric_name].get("start_date", None)
+                if metric_start_date:
+                    too_old = commit_timestamp < datetime.datetime.strptime(metric_start_date, "%Y-%m-%d")
+
+                if not too_old and not measured_data.is_measured(repo_name, sha1, metric_name):
                     metrics_that_lack_data_for_this_sha1.append(metric_name)
             if len(metrics_that_lack_data_for_this_sha1) > 0:
                 todo_list.append((repo_name, sha1, timestamp, metrics_that_lack_data_for_this_sha1))
