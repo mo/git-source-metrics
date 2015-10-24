@@ -90,7 +90,7 @@ def get_sparse_commits(repo_name, repo_config):
             if not args.quiet:
                 print "WARNING: commit with sha1 %s in repo %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % (sha1, repo_name)
             continue
-        if (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
+        if not "tick_gap_days" in repo_config or (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
             all_xticks[timestamp] = sha1
             last_tick_commit_date = commit_date
 
