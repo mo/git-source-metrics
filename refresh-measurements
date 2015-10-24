@@ -216,7 +216,7 @@ def refresh_measurements(config, data_filename, measured_data, jsdata_filename):
     repo_to_metrics_map = {}
     for chart_name, chart in config["charts"].iteritems():
         for series in chart["chart_series"]:
-            repo_to_metrics_map.setdefault(series["repo"], []).append(series["metric"])
+            repo_to_metrics_map.setdefault(series["repo"], set()).add(series["metric"])
 
     todo_list = []
     for repo_name, repo_metrics in repo_to_metrics_map.iteritems():
