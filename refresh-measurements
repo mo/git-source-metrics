@@ -206,6 +206,9 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
 def refresh_measurements(config, data_filename, measured_data, jsdata_filename):
     selected_commits = {}
     for repo_name, repo_config in config["git_repos"].iteritems():
+        if args.skip_fetch and not os.path.exists(local_workingdir(repo_config["git_url"])):
+            print "ERROR: --skip-fetch cannot be used with repositories that hasn't been cloned yet. Please re-run without --skip-fetch."
+            sys.exit(1)
         if not args.quiet:
             print >> sys.stderr, "Making list of SHA1s to measure in repo: " + repo_name
         selected_commits[repo_name] = get_sparse_commits(repo_name, repo_config)
