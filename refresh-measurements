@@ -203,53 +203,7 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
     shutil.move(jsdata_tempfile_name, jsdata_filename)
     os.chmod(jsdata_filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH)
 
-def main():
-    config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
-
-    jsdata_filename = os.path.join(SCRIPT_DIR, "..", "all_chart_data.js")
-
-    data_filename = os.path.join(SCRIPT_DIR, "..", "data.pyon")
-    if os.path.exists(data_filename):
-        measured_data = MeasuredData()
-        measured_data.load_from_file(data_filename)
-    else:
-        measured_data = MeasuredData()
-
-    if args.delete_data_for_repo:
-        repo_name = args.delete_data_for_repo
-        if not repo_name in config["git_repos"]:
-            print "ERROR: no such repo name in config"
-            sys.exit(1)
-        measured_data.clear_data_for_repo(repo_name)
-        measured_data.save_to_file(data_filename)
-        print "All data for repo '%s' deleted." % repo_name
-        sys.exit(0)
-
-    if args.delete_data_for_metric:
-        metric_name = args.delete_data_for_metric
-        if not metric_name in config["metrics"]:
-            print "ERROR: no such metric name in config"
-            sys.exit(1)
-        for repo_name, repo_config in config["git_repos"].iteritems():
-            measured_data.clear_data_for_repo_metric(repo_name, metric_name)
-        measured_data.save_to_file(data_filename)
-        print "All data for metric '%s' deleted." % metric_name
-        sys.exit(0)
-
-    if args.list_repos:
-        for repo_name in config["git_repos"]:
-            print repo_name
-        sys.exit(0)
-
-    if args.list_metrics:
-        for metric_name in config["metrics"]:
-            print metric_name
-        sys.exit(0)
-
-    if not args.skip_fetch:
-        git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
-        fetch_latest_code(git_urls)
-
+def refresh_measurements(config, data_filename, measured_data, jsdata_filename):
     selected_commits = {}
     for repo_name, repo_config in config["git_repos"].iteritems():
         if not args.quiet:
@@ -293,21 +247,73 @@ def main():
 
         measured_data.save_to_file(data_filename)
         save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
-
     else:
         save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
+
+
+def main():
+    config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
+    data_filename = os.path.join(SCRIPT_DIR, "..", "data.pyon")
+    jsdata_filename = os.path.join(SCRIPT_DIR, "..", "all_chart_data.js")
+
+    if os.path.exists(data_filename):
+        measured_data = MeasuredData()
+        measured_data.load_from_file(data_filename)
+    else:
+        measured_data = MeasuredData()
+
+    if args.delete_data_for_repo:
+        repo_name = args.delete_data_for_repo
+        if not repo_name in config["git_repos"]:
+            print "ERROR: no such repo name in config"
+            sys.exit(1)
+        measured_data.clear_data_for_repo(repo_name)
+        measured_data.save_to_file(data_filename)
+        print "All data for repo '%s' deleted." % repo_name
+        sys.exit(0)
+
+    if args.delete_data_for_metric:
+        metric_name = args.delete_data_for_metric
+        if not metric_name in config["metrics"]:
+            print "ERROR: no such metric name in config"
+            sys.exit(1)
+        for repo_name, repo_config in config["git_repos"].iteritems():
+            measured_data.clear_data_for_repo_metric(repo_name, metric_name)
+        measured_data.save_to_file(data_filename)
+        print "All data for metric '%s' deleted." % metric_name
+        sys.exit(0)
+
+    if args.list_repos:
+        for repo_name in config["git_repos"]:
+            print repo_name
+        sys.exit(0)
+
+    if args.list_metrics:
+        for metric_name in config["metrics"]:
+            print metric_name
+        sys.exit(0)
+
+    if not args.skip_fetch:
+        git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
+        fetch_latest_code(git_urls)
+
+    refresh_measurements(config, data_filename, measured_data, jsdata_filename)
 
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument("--quiet", action="store_true")
         parser.add_argument("--debug", action="store_true")
+
         parser.add_argument("--skip-fetch", action="store_true", help="don't call 'git fetch', just process what is available locally (for debugging only)")
+
         # Ignoring commits before year 1990 because golang repo starts with a
         # few prank commits from the 70ties and this compressed the meaningful
         # data visually in the finished chart.
         parser.add_argument("--ignore-commits-before-year", metavar="YYYY", type=int, default=1990)
+
         parser.add_argument("--include-all-measured-sha1s", action="store_true")
+
         parser.add_argument("--delete-data-for-metric", metavar="METRIC_NAME", type=str)
         parser.add_argument("--delete-data-for-repo", metavar="REPO_NAME", type=str)
         parser.add_argument("--list-repos", action="store_true")
