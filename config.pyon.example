@@ -42,7 +42,7 @@
     },
     "metrics": {
         "active_authors_60days": {
-            "cmd": "git-log-robust-since-alt $((%(timestamp)s-60*60*60*24)) %(sha1)s | cut -f 3 -d ' ' | cut -f 1 -d @ | sort | uniq | wc -l",
+            "cmd": "git-log-robust-since $((%(timestamp)s-60*60*60*24)) %(sha1)s | cut -f 3 -d ' ' | cut -f 1 -d @ | sort | uniq | wc -l",
             "title": "active authors last 60 days",
             "workdir": False,
         },
