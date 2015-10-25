@@ -38,13 +38,31 @@
     margin-bottom: 20px;
 }
 #legend {
-    display: inline-block;
-    vertical-align: top;
-    margin: 0 0 0 10px;
+    min-width: 290px;
 }
 #chart_select {
     width: 1100px;
     margin-left: 100px;
+}
+#rightColumn {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0 0 0 10px;
+}
+#optionsPanel {
+    padding: 10px;
+}
+#optionsPanel input {
+    float: left;
+}
+#optionsPanel label {
+    float: left;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    margin-top: 1px;
+}
+#optionsPanel label + input {
+    clear: left;
 }
 </style>
 
@@ -59,7 +77,16 @@
         <div id="annotation_timeline"></div>
         <div id="range_slider"></div>
 </div>
-<div id="legend"></div>
+<div id="rightColumn">
+    <div id="legend"></div>
+    <div id="optionsPanel">
+        <input type="radio" name="y-axis-scaling" id="btnRescale" />
+        <label for="btnRescale">Rescale Y-axis to currently visible data</label>
+
+        <input type="radio" name="y-axis-scaling" id="btnFixed" checked="checked" />
+        <label for="btnFixed">Fixed Y-axis range</label>
+    </div>
+</div>
 
 <script>
 var params = get_url_params();
@@ -81,16 +108,39 @@ for (var idx = 0; idx < chart_keys_sorted_by_title.length; idx++) {
 document.getElementById('chart_select').value = params["chart"]
 document.getElementById('chart_select').focus()
 
+var allSeries = all_chart_data[params["chart"]]["chart_series"];
+var allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
+var allSeriesYMax = d3.max(allSeries, serie => d3.max(serie.data, datapoint => datapoint.y));
+
 var graph = new Rickshaw.Graph( {
         element: document.querySelector("#chart"),
         width: 1100,
         height: 500,
         interpolation: "linear",
         stack: false,
-        series: all_chart_data[params["chart"]]["chart_series"]
+        series: allSeries,
+        min: allSeriesYMin,
+        max: allSeriesYMax*1.1,
 } );
 graph.setRenderer('line');
 graph.render();
+
+$("#btnFixed").click(function (e) {
+    graph.configure({
+        min: allSeriesYMin,
+        max: allSeriesYMax*1.1,
+    });
+    graph.render();
+});
+
+
+$("#btnRescale").click(function (e) {
+    graph.configure({
+        min: undefined,
+        max: undefined,
+    });
+    graph.render();
+});
 
 function timestampToDateString(x) {
     return (new Date(x*1000)).toISOString().substring(0, 10)
