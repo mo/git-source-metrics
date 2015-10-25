@@ -17,6 +17,60 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_DIR = "~/.git-source-metrics/"
 CODE_CACHE_DIR = "~/.git-source-metrics/code/"
 
+def test_human_readable_time_span():
+    # normal use cases
+    assert human_readable_time_span(1) == "1s"
+    assert human_readable_time_span(36) == "36s"
+    assert human_readable_time_span(59) == "59s"
+    assert human_readable_time_span(60) == "1m"
+    assert human_readable_time_span(61) == "1m1s"
+    assert human_readable_time_span(119) == "1m59s"
+    assert human_readable_time_span(120) == "2m"
+    assert human_readable_time_span(121) == "2m1s"
+    assert human_readable_time_span(3599) == "59m59s"
+    assert human_readable_time_span(3600) == "1h"
+    assert human_readable_time_span(3601) == "1h1s"
+    assert human_readable_time_span(3660) == "1h1m"
+    assert human_readable_time_span(3661) == "1h1m1s"
+    assert human_readable_time_span(314159265) == "3636d2h27m45s"
+    assert human_readable_time_span(4815162342) == "55731d1h5m42s"
+
+    # edge cases
+    assert human_readable_time_span(0) == "0s"
+    assert human_readable_time_span(-1) == "-1s"
+    assert human_readable_time_span(-3661) == "-1h1m1s"
+    assert human_readable_time_span(sys.maxint-1) == "106751991167300d15h30m6s"
+    assert human_readable_time_span(sys.maxint) == "106751991167300d15h30m7s"
+    assert human_readable_time_span(sys.maxint+1) == "106751991167300d15h30m8s"
+    assert human_readable_time_span(-sys.maxint) == "-106751991167300d15h30m7s"
+    assert human_readable_time_span(-sys.maxint-1) == "-106751991167300d15h30m8s"
+    assert human_readable_time_span(-sys.maxint-2) == "-106751991167300d15h30m9s"
+
+    # invalid input
+    # n/a
+
+def human_readable_time_span(seconds):
+    if seconds < 0:
+        return "-" + human_readable_time_span(-1*seconds)
+
+    output = ""
+    if seconds == 0 or seconds % 60 != 0:
+        output = str(int(seconds % 60)) + "s"
+
+    minutes = seconds // 60
+    if minutes % 60 != 0:
+        output = str(int(minutes % 60)) + "m" + output
+
+    hours = minutes // 60
+    if hours % 24 != 0:
+        output = str(int(hours % 24)) + "h" + output
+
+    days = hours // 24
+    if days != 0:
+        output = str(int(days)) + "d" + output
+
+    return output
+
 def local_workingdir(git_url):
     code_cache_dir = os.path.expanduser(CODE_CACHE_DIR)
     if not os.path.exists(code_cache_dir):
@@ -303,13 +357,39 @@ def main():
         sys.exit(0)
 
     if not args.skip_fetch:
+        fetch_start_time = datetime.datetime.now()
         git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
         fetch_latest_code(git_urls)
+        fetch_end_time = datetime.datetime.now()
 
+    measurement_start_time = datetime.datetime.now()
     refresh_measurements(config, data_filename, measured_data, jsdata_filename)
+    measurement_end_time = datetime.datetime.now()
+
+    print
+    print "---[ Finished ]-----------------------------------------------------"
+    print
+
+    if not args.skip_fetch:
+        print "Fetch began: " + str(fetch_start_time)[:16]
+        print "Fetch finished: " + str(fetch_end_time)[:16]
+        fetch_seconds = (fetch_end_time - fetch_start_time).total_seconds()
+        print "Fetch took: " + human_readable_time_span(fetch_seconds)
+        print
+
+    print "Measurement began: " + str(measurement_start_time)[:16]
+    print "Measurement finished: " + str(measurement_end_time)[:16]
+    measurement_seconds = (measurement_end_time - measurement_start_time).total_seconds()
+    print "Measurement took: " + human_readable_time_span(measurement_seconds)
+    print
+
+def run_tests():
+    test_human_readable_time_span()
 
 if __name__ == '__main__':
     try:
+        run_tests()
+
         parser = argparse.ArgumentParser()
         parser.add_argument("--quiet", action="store_true")
         parser.add_argument("--debug", action="store_true")
