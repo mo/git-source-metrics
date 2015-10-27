@@ -55,7 +55,7 @@
     margin: 0 0 0 10px;
 }
 #optionsPanel {
-    padding: 10px;
+    padding: 0px 10px;
 }
 #optionsPanel input {
     float: left;
@@ -68,6 +68,15 @@
 }
 #optionsPanel label + input {
     clear: left;
+}
+#legendHelpText {
+    width: 280px;
+    margin-left: 3px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8pt;
+}
+#scalingButtonsContainer {
+    margin-top: 20px;
 }
 </style>
 
@@ -85,11 +94,16 @@
 <div id="rightColumn">
     <div id="legend"></div>
     <div id="optionsPanel">
-        <input type="radio" name="y-axis-scaling" id="btnRescale" />
-        <label for="btnRescale">Rescale Y-axis to currently visible data</label>
+        <div id="legendHelpText">
+        &#x2B11; uncheck to temporarily hide metrics
+        </div>
+        <div id="scalingButtonsContainer">
+            <input type="radio" name="y-axis-scaling" id="btnRescale" />
+            <label for="btnRescale">Rescale Y-axis to currently visible data</label>
 
-        <input type="radio" name="y-axis-scaling" id="btnFixed" checked="checked" />
-        <label for="btnFixed">Fixed Y-axis range</label>
+            <input type="radio" name="y-axis-scaling" id="btnFixed" checked="checked" />
+            <label for="btnFixed">Fixed Y-axis range</label>
+        </div>
     </div>
 </div>
 
