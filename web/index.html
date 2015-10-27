@@ -69,11 +69,17 @@
 #optionsPanel label + input {
     clear: left;
 }
+#legendHelpArrow {
+    font-size: 19pt;
+    color: gray;
+}
 #legendHelpText {
     width: 280px;
-    margin-left: 3px;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 8pt;
+}
+#legendHelpText span {
+    vertical-align: middle;
 }
 #scalingButtonsContainer {
     margin-top: 20px;
@@ -95,7 +101,7 @@
     <div id="legend"></div>
     <div id="optionsPanel">
         <div id="legendHelpText">
-        &#x2B11; uncheck to temporarily hide metrics
+            <span id="legendHelpArrow">&#x2B11;</span> <span>too much clutter? uncheck to temporarily hide metrics</span>
         </div>
         <div id="scalingButtonsContainer">
             <input type="radio" name="y-axis-scaling" id="btnRescale" />
