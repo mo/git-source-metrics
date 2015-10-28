@@ -17,7 +17,7 @@ def has_N_unique_authors(author_count, list):
 
 parser = argparse.ArgumentParser(
     description=("finds the first sha1 which is older than the specified "
-                 "--timestamp while not getting tricked by commits that was "
+                 "'timestamp' while not getting tricked by commits that was "
                  "done with incorrect/deviant system clock settings"))
 parser.add_argument('--debug', action="store_true")
 parser.add_argument('timestamp', metavar='UNIX_TIMESTAMP', type=int,
@@ -39,10 +39,10 @@ args = parser.parse_args()
 cut_off_date = int(args.timestamp)
 held_back = []
 
-proc = subprocess.Popen("git log --first-parent --pretty='%%ct %%H %%an <%%ae>' %s" % args.sha1,
+proc = subprocess.Popen("git log --pretty='%%ct %%H' %s" % args.sha1,
                         stdout=subprocess.PIPE, bufsize=1, shell=True)
 for line in iter(proc.stdout.readline, b''):
-    current_timestamp, current_sha1, current_author = line.strip().split(" ", 2)
+    current_timestamp, current_sha1 = line.strip().split(" ", 1)
     try:
         current_timestamp = int(current_timestamp)
     except:
@@ -51,17 +51,14 @@ for line in iter(proc.stdout.readline, b''):
         # the commits have timestamps. Seems like git 1.7.10.4 has a problem
         # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
         current_timestamp = 0
-    if args.debug:
-        print current_sha1 + ": " + str(datetime.datetime.fromtimestamp(current_timestamp)) + " < " + str(datetime.datetime.fromtimestamp(cut_off_date)) + " is " + str(int(current_timestamp) < cut_off_date)
     if int(current_timestamp) < cut_off_date:
-        held_back.append((current_sha1, current_author))
+        held_back.append((current_timestamp, current_sha1))
         if has_N_unique_authors(args.authoritative_dev_count, held_back):
-            print held_back[0][0]
+            print held_back[0][1]
             sys.exit(0)
     else:
         held_back = []
-
-print held_back[0][0]
+print current_sha1
 
 (stdoutdata, stderrdata) = proc.communicate()
 assert stdoutdata == '' or stdoutdata is None
