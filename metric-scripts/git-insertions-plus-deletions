@@ -12,7 +12,16 @@ args = parser.parse_args()
 git_diff_cmd = "git diff --shortstat %s %s" % (args.start_sha1, args.end_sha1)
 shortstat = subprocess.check_output(git_diff_cmd, shell=True)
 
-insertions = int(re.search("([0-9]+) insertions", shortstat).group(1))
-deletions = int(re.search("([0-9]+) deletions", shortstat).group(1))
+match = re.search("([0-9]+) insertions", shortstat)
+if match:
+    insertions = int(match.group(1))
+else:
+    insertions = 0
+
+match = re.search("([0-9]+) deletions", shortstat)
+if match:
+    deletions = int(match.group(1))
+else:
+    deletions = 0
 
 print str(insertions + deletions)
