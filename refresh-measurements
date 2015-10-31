@@ -50,6 +50,7 @@ def test_human_readable_time_span():
     # invalid input
     # n/a
 
+
 def human_readable_time_span(seconds):
     if seconds < 0:
         return "-" + human_readable_time_span(-1*seconds)
@@ -72,6 +73,7 @@ def human_readable_time_span(seconds):
 
     return output
 
+
 def local_workingdir(git_url):
     code_cache_dir = os.path.expanduser(CODE_CACHE_DIR)
     if not os.path.exists(code_cache_dir):
@@ -80,6 +82,7 @@ def local_workingdir(git_url):
     working_dir_path = os.path.join(code_cache_dir, working_dirname)
     return working_dir_path
 
+
 def spawn_git_fetcher(git_url):
     git_workdir = local_workingdir(git_url)
     if not os.path.exists(git_workdir):
@@ -87,6 +90,7 @@ def spawn_git_fetcher(git_url):
     else:
         git_proc = subprocess.Popen("git fetch -q", stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=git_workdir, shell=True)
     return (git_url, git_proc)
+
 
 # Launch one git process per repo (in parallel) to fetch the latest
 # code and then wait for all the processes to finish.
@@ -109,6 +113,7 @@ def fetch_latest_code(all_git_urls):
                     print >> sys.stderr, " (still waiting for %d more git processes to finish)" % len(remaining_procs)
         time.sleep(1)
 
+
 def git_reset_to(repo_name, git_workdir, sha1):
     if not args.quiet:
         print >> sys.stderr, "%s: git cleaning" % repo_name
@@ -116,6 +121,7 @@ def git_reset_to(repo_name, git_workdir, sha1):
     if not args.quiet:
         print >> sys.stderr, "%s: git resetting to %s" % (repo_name, sha1)
     subprocess.check_call("git reset -q --hard %s" % sha1, cwd=git_workdir, shell=True)
+
 
 def get_sparse_commits(repo_name, repo_config):
     branch = "origin/" + repo_config.get("branch", "master")
@@ -151,6 +157,7 @@ def get_sparse_commits(repo_name, repo_config):
 
     return all_xticks
 
+
 def measure_metric(metric, git_workdir, sha1, timestamp):
     cmd_params_dict = {
         "sha1": sha1,
@@ -165,6 +172,16 @@ def measure_metric(metric, git_workdir, sha1, timestamp):
     if args.debug:
         print >>sys.stderr, "DEBUG: " + repr(value)
     return int(value)
+
+# While this script is running it saves timestamps at various moments so that
+# it can print a summary in the end of how long various stages took etc.
+class TimingData(object):
+    def __init__(self):
+        self.fetch_start_time = None
+        self.fetch_end_time = None
+        self.refresh_start_time = None
+        self.refresh_end_time = None
+
 
 class MeasuredData(object):
     def __init__(self):
@@ -206,6 +223,7 @@ class MeasuredData(object):
             "value": value,
         }
         metric_dict[sha1] = datapoint
+
 
 def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
     all_charts = config["charts"]
@@ -258,7 +276,8 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
     shutil.move(jsdata_tempfile_name, jsdata_filename)
     os.chmod(jsdata_filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH)
 
-def refresh_measurements(config, data_filename, measured_data, jsdata_filename):
+
+def select_commit_ticks(config):
     selected_commits = {}
     for repo_name, repo_config in config["git_repos"].iteritems():
         if args.skip_fetch and not os.path.exists(local_workingdir(repo_config["git_url"])):
@@ -267,7 +286,10 @@ def refresh_measurements(config, data_filename, measured_data, jsdata_filename):
         if not args.quiet:
             print >> sys.stderr, "Making list of SHA1s to measure in repo: " + repo_name
         selected_commits[repo_name] = get_sparse_commits(repo_name, repo_config)
+    return selected_commits
 
+
+def refresh_measurements(config, selected_commits, data_filename, measured_data, jsdata_filename):
     repo_to_metrics_map = {}
     for chart_name, chart in config["charts"].iteritems():
         for series in chart["chart_series"]:
@@ -324,17 +346,7 @@ def refresh_measurements(config, data_filename, measured_data, jsdata_filename):
         save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
 
 
-def main():
-    config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
-    data_filename = os.path.join(SCRIPT_DIR, "..", "data.pyon")
-    jsdata_filename = os.path.join(SCRIPT_DIR, "..", "all_chart_data.js")
-
-    if os.path.exists(data_filename):
-        measured_data = MeasuredData()
-        measured_data.load_from_file(data_filename)
-    else:
-        measured_data = MeasuredData()
-
+def handle_delete_and_list_switches(config, measured_data, data_filename):
     if args.delete_data_for_repo:
         repo_name = args.delete_data_for_repo
         if not repo_name in config["git_repos"]:
@@ -366,32 +378,64 @@ def main():
             print metric_name
         sys.exit(0)
 
-    if not args.skip_fetch:
-        fetch_start_time = datetime.datetime.now()
-        git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
-        fetch_latest_code(git_urls)
-        fetch_end_time = datetime.datetime.now()
 
-    refresh_start_time = datetime.datetime.now()
-    refresh_measurements(config, data_filename, measured_data, jsdata_filename)
-    refresh_end_time = datetime.datetime.now()
-
+def print_summary(timing_data):
     print
     print "---[ Finished ]-----------------------------------------------------"
     print
 
     if not args.skip_fetch:
-        print "Fetch began: " + str(fetch_start_time)[:16]
-        print "Fetch finished: " + str(fetch_end_time)[:16]
-        fetch_seconds = (fetch_end_time - fetch_start_time).total_seconds()
+        print "Fetch began: " + str(timing_data.fetch_start_time)[:16]
+        print "Fetch finished: " + str(timing_data.fetch_end_time)[:16]
+        fetch_seconds = (timing_data.fetch_end_time - timing_data.fetch_start_time).total_seconds()
         print "Fetch took: " + human_readable_time_span(fetch_seconds)
         print
 
-    print "Measurement began: " + str(refresh_start_time)[:16]
-    print "Measurement finished: " + str(refresh_end_time)[:16]
-    measurement_seconds = (refresh_end_time - refresh_start_time).total_seconds()
+    print "Measurement began: " + str(timing_data.refresh_start_time)[:16]
+    print "Measurement finished: " + str(timing_data.refresh_end_time)[:16]
+    measurement_seconds = (timing_data.refresh_end_time - timing_data.refresh_start_time).total_seconds()
     print "Measurement took: " + human_readable_time_span(measurement_seconds)
     print
+
+
+def main():
+    config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
+    data_filename = os.path.join(SCRIPT_DIR, "..", "data.pyon")
+    jsdata_filename = os.path.join(SCRIPT_DIR, "..", "all_chart_data.js")
+
+    timing_data = TimingData()
+
+    if os.path.exists(data_filename):
+        measured_data = MeasuredData()
+        measured_data.load_from_file(data_filename)
+    else:
+        measured_data = MeasuredData()
+
+    handle_delete_and_list_switches(config, measured_data, data_filename)
+
+    if not args.skip_fetch:
+        timing_data.fetch_start_time = datetime.datetime.now()
+        git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
+        fetch_latest_code(git_urls)
+        timing_data.fetch_end_time = datetime.datetime.now()
+
+    # By default we measure for every single commit, but depending on repo size,
+    # volatility of the involved metrics, project commit frequency etc we might
+    # not need/want to measure that often; in this case a
+    #
+    #   "tick_gap_days": N,
+    #
+    # key can be added in the repo config, which will make measurement happen as
+    # often as possible while ensuring that at least N days passes between the
+    # commit timestamps of two measured commits.
+    selected_commits = select_commit_ticks(config)
+
+    timing_data.refresh_start_time = datetime.datetime.now()
+    refresh_measurements(config, selected_commits, data_filename, measured_data, jsdata_filename)
+    timing_data.refresh_end_time = datetime.datetime.now()
+
+    print_summary(timing_data)
+
 
 def run_tests():
     test_human_readable_time_span()
