@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# TODO: make sure we measure non-computed metrics that are not part of any
+# chart, if those metrics are then used for computed metrics that _are_ part of at least one chart
+
 import os
 import sys
 import sets
@@ -128,14 +131,14 @@ def get_sparse_commits(repo_name, repo_config):
     git_workdir = local_workingdir(repo_config["git_url"])
     git_log_cmd = "git log --first-parent --pretty=format:'%H %ct' " + branch
     git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True)
-    sha1_and_timestamp_list = git_log_output.splitlines()
+    sha1_and_timestamp_lines = git_log_output.splitlines()
 
-    all_xticks = {}
+    all_xticks = []
     last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
 
-    while len(sha1_and_timestamp_list) > 0:
-        sha1, timestamp = sha1_and_timestamp_list.pop(-1).split(" ", 1)
-        if not timestamp:
+    while len(sha1_and_timestamp_lines) > 0:
+        sha1, commit_timestamp = sha1_and_timestamp_lines.pop(-1).split(" ", 1)
+        if not commit_timestamp:
             if not args.quiet:
                 # Happens for 281a10c59d5a6522b2bebc6f78c165816d1f8421 in https://github.com/mozilla/gecko-dev
                 # Not sure if this is a git bug or not, I couldn't find a way to create a commit with empty
@@ -143,7 +146,7 @@ def get_sparse_commits(repo_name, repo_config):
                 # that mozilla uses.
                 print "WARNING: commit with sha1 %s in repo %s looks invalid, ignoring." % (sha1, repo_name)
             continue
-        commit_date = datetime.datetime.fromtimestamp(int(timestamp))
+        commit_date = datetime.datetime.fromtimestamp(int(commit_timestamp))
         if commit_date.year < args.ignore_commits_before_year:
             print "WARNING: commit with sha1 %s in repo %s is too old, ignoring." % (sha1, repo_name)
             continue
@@ -152,10 +155,44 @@ def get_sparse_commits(repo_name, repo_config):
                 print "WARNING: commit with sha1 %s in repo %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % (sha1, repo_name)
             continue
         if not "tick_gap_days" in repo_config or (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
-            all_xticks[timestamp] = sha1
+            all_xticks.append((sha1, commit_timestamp))
             last_tick_commit_date = commit_date
 
     return all_xticks
+
+
+def get_metric_type(config, metric_name):
+    return config["metrics"][metric_name]["type"]
+
+
+def compute_moving_average(metric, repo_name, target_sha1, commit_timestamp, selected_commits, measured_data):
+    # "tick_width" == 1 would make the moving average series identical to the
+    # underlying metric so it should always be 2 or higher (often higher).
+    tick_width = metric["moving_average_tick_width"]
+    underlying_metric_name = metric["underlying_metric"]
+    selected_sha1s = [sha1 for (sha1, commit_timestamp) in selected_commits]
+    # "underlying_data" will be a dict that maps sha1 to { "timestamp": X, "value": Y }
+    underlying_data = measured_data.get_repo_metric_dict(repo_name, underlying_metric_name)
+    # To compute the "moving average" value at target_sha1 we take the value of
+    # the underlying metric at target_sha1 as well as the values of the underlying
+    # metric at the "tick_width-1" ticks before "target_sha1", and then we calculate
+    # the average of these values.
+    target_index = selected_sha1s.index(target_sha1)
+    first_index = target_index - tick_width + 1
+    # It's not possible to calculate a moving average unless we're at least
+    # "tick_width" ticks into the series.
+    if first_index <  0:
+        return None
+    summation = sum([underlying_data[sha1]["value"] for sha1 in selected_sha1s[first_index:target_index+1]])
+    return summation / tick_width
+
+def compute_metric(metric, repo_name, sha1, commit_timestamp, selected_commits, measured_data):
+    metric_type = metric["type"]
+    if metric_type == "moving_average":
+        return compute_moving_average(metric, repo_name, sha1, commit_timestamp, selected_commits, measured_data)
+    else:
+        print "ERROR: config.pyon contains invalid metric type '%s'" % metric_type
+        sys.exit(1)
 
 
 def measure_metric(metric, git_workdir, sha1, timestamp):
@@ -172,6 +209,7 @@ def measure_metric(metric, git_workdir, sha1, timestamp):
     if args.debug:
         print >>sys.stderr, "DEBUG: " + repr(value)
     return int(value)
+
 
 # While this script is running it saves timestamps at various moments so that
 # it can print a summary in the end of how long various stages took etc.
@@ -213,10 +251,10 @@ class MeasuredData(object):
     def get_repo_metric_dict(self, repo_name, metric_name):
         return self.datapoints.setdefault(repo_name, {}).setdefault(metric_name, {})
 
-    def is_measured(self, repo_name, sha1, metric_name):
+    def contains_data_for(self, repo_name, sha1, metric_name):
         return sha1 in self.get_repo_metric_dict(repo_name, metric_name)
 
-    def add_measurement(self, repo_name, sha1, timestamp, metric_name, value):
+    def add_data(self, repo_name, sha1, timestamp, metric_name, value):
         metric_dict = self.get_repo_metric_dict(repo_name, metric_name)
         datapoint = {
             "timestamp": timestamp,
@@ -244,7 +282,8 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
                 series_data = measured_data.get_repo_metric_dict(series["repo"], series["metric"])
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))
                 if not args.include_all_measured_sha1s:
-                    repo_selected_sha1s = selected_commits[series["repo"]].values()
+                    # TODO: try zip(*foo) here
+                    repo_selected_sha1s = [sha1 for (sha1, commit_timestamp) in selected_commits[series["repo"]]]
                     series_data = filter(lambda (sha1, datapoint): sha1 in repo_selected_sha1s, series_data)
                 for idx, (sha1, datapoint) in enumerate(series_data):
                     if idx:
@@ -267,8 +306,8 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
         jsdata_temp_file.write("\n")
         jsdata_temp_file.write("timestamp_to_sha1 = {\n")
         for repo_name, repo_selected_commits in selected_commits.iteritems():
-            for timestamp, sha1 in repo_selected_commits.iteritems():
-                jsdata_temp_file.write("    %s: '%s',\n" % (timestamp, sha1))
+            for sha1, commit_timestamp in repo_selected_commits:
+                jsdata_temp_file.write("    %s: '%s',\n" % (commit_timestamp, sha1))
         jsdata_temp_file.write("}\n")
 
     # when file is written, move it into place
@@ -293,23 +332,24 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
     repo_to_metrics_map = {}
     for chart_name, chart in config["charts"].iteritems():
         for series in chart["chart_series"]:
-            repo_to_metrics_map.setdefault(series["repo"], set()).add(series["metric"])
+            if get_metric_type(config, series["metric"]) == "command":
+                repo_to_metrics_map.setdefault(series["repo"], set()).add(series["metric"])
 
     todo_list = []
     for repo_name, repo_metrics in repo_to_metrics_map.iteritems():
-        for timestamp, sha1 in selected_commits[repo_name].iteritems():
+        for sha1, commit_timestamp in selected_commits[repo_name]:
             metrics_that_lack_data_for_this_sha1 = []
-            commit_timestamp = datetime.datetime.fromtimestamp(int(timestamp))
+            commit_datetime = datetime.datetime.fromtimestamp(int(commit_timestamp))
             for metric_name in repo_metrics:
                 too_old = False
                 metric_start_date = config["metrics"][metric_name].get("start_date", None)
                 if metric_start_date:
-                    too_old = commit_timestamp < datetime.datetime.strptime(metric_start_date, "%Y-%m-%d")
+                    too_old = commit_datetime < datetime.datetime.strptime(metric_start_date, "%Y-%m-%d")
 
-                if not too_old and not measured_data.is_measured(repo_name, sha1, metric_name):
+                if not too_old and not measured_data.contains_data_for(repo_name, sha1, metric_name):
                     metrics_that_lack_data_for_this_sha1.append(metric_name)
             if len(metrics_that_lack_data_for_this_sha1) > 0:
-                todo_list.append((repo_name, sha1, timestamp, metrics_that_lack_data_for_this_sha1))
+                todo_list.append((repo_name, sha1, commit_timestamp, metrics_that_lack_data_for_this_sha1))
 
     random.shuffle(todo_list)
 
@@ -338,8 +378,56 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
                 estimated_seconds_left = CYNICAL_EXTRA_SECONDS + (measurements_total-measurements_done) * seconds_per_measurement
                 print >> sys.stderr, "%s: measuring %s (%s) ... %d%% done, est. time left: %s" % (repo_name, sha1, metric_name, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
             value = measure_metric(config["metrics"][metric_name], git_workdir, sha1, timestamp)
-            measured_data.add_measurement(repo_name, sha1, timestamp, metric_name, value)
+            measured_data.add_data(repo_name, sha1, timestamp, metric_name, value)
 
+        measured_data.save_to_file(data_filename)
+        save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
+    else:
+        save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
+
+
+def refresh_computed_metrics(config, selected_commits, data_filename, measured_data, jsdata_filename):
+    repo_to_computed_metrics_map = {}
+    for chart_name, chart in config["charts"].iteritems():
+        for series in chart["chart_series"]:
+            if get_metric_type(config, series["metric"]) != "command":
+                repo_to_computed_metrics_map.setdefault(series["repo"], set()).add(series["metric"])
+
+    todo_list = []
+    for repo_name, repo_metrics in repo_to_computed_metrics_map.iteritems():
+        for sha1, commit_timestamp in selected_commits[repo_name]:
+            metrics_that_lack_data_for_this_sha1 = []
+            commit_datetime = datetime.datetime.fromtimestamp(int(commit_timestamp))
+            for metric_name in repo_metrics:
+                too_old = False
+                metric_start_date = config["metrics"][metric_name].get("start_date", None)
+                if metric_start_date:
+                    too_old = commit_datetime < datetime.datetime.strptime(metric_start_date, "%Y-%m-%d")
+
+                if not too_old and not measured_data.contains_data_for(repo_name, sha1, metric_name):
+                    metrics_that_lack_data_for_this_sha1.append(metric_name)
+            if len(metrics_that_lack_data_for_this_sha1) > 0:
+                todo_list.append((repo_name, sha1, commit_timestamp, metrics_that_lack_data_for_this_sha1))
+
+    # TODO: delete or rename to computations
+    measurements_done = 0
+    measurements_total = 0
+    for (_, sha1, _, metrics_that_lack_data_for_this_sha1) in todo_list:
+        measurements_total += len(metrics_that_lack_data_for_this_sha1)
+    measurement_start_time = datetime.datetime.now()
+    for (repo_name, sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
+        for metric_name in metrics_that_lack_data_for_this_sha1:
+            measurements_done += 1
+            if not args.quiet:
+                measurement_elapsed_time = datetime.datetime.now() - measurement_start_time
+                seconds_per_measurement = measurement_elapsed_time.total_seconds() / measurements_done
+                estimated_seconds_left = CYNICAL_EXTRA_SECONDS + (measurements_total-measurements_done) * seconds_per_measurement
+                print >> sys.stderr, "%s: computing %s (%s) ... %d%% done, est. time left: %s" % (repo_name, sha1, metric_name, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
+            value = compute_metric(config["metrics"][metric_name], repo_name, sha1, timestamp, selected_commits[repo_name], measured_data)
+            if value != None:
+                measured_data.add_data(repo_name, sha1, timestamp, metric_name, value)
+
+        # TODO: probably not save every loop iteration here?
         measured_data.save_to_file(data_filename)
         save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
     else:
@@ -427,12 +515,19 @@ def main():
     #
     # key can be added in the repo config, which will make measurement happen as
     # often as possible while ensuring that at least N days passes between the
-    # commit timestamps of two measured commits.
+    # commit timestamps of two measured commits. The same set of selected commits
+    # will then be used for all measured metrics as well as all computed metrics.
     selected_commits = select_commit_ticks(config)
 
+    # Make sure we have measured everything that can be measured directly
+    # (i.e. doesn't depend on other metrics).
     timing_data.refresh_start_time = datetime.datetime.now()
     refresh_measurements(config, selected_commits, data_filename, measured_data, jsdata_filename)
     timing_data.refresh_end_time = datetime.datetime.now()
+
+    # Finally, compute values for all metrics that derive from other
+    # directly measured metrics.
+    refresh_computed_metrics(config, selected_commits, data_filename, measured_data, jsdata_filename)
 
     print_summary(timing_data)
 

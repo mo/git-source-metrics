@@ -42,13 +42,15 @@
     },
     "metrics": {
         "active_authors_60days": {
-            "cmd": "git-log-robust-since $((%(timestamp)s-60*60*60*24)) %(sha1)s | cut -f 3 -d ' ' | cut -f 1 -d @ | sort | uniq | wc -l",
             "title": "active authors last 60 days",
+            "type": "command",
+            "cmd": "git-log-robust-since $((%(timestamp)s-60*60*60*24)) %(sha1)s | cut -f 3 -d ' ' | cut -f 1 -d @ | sort | uniq | wc -l",
             "workdir": False,
         },
         "commit_count_60days": {
-            "cmd": "git-log-robust-since $((%(timestamp)s-60*60*60*24)) %(sha1)s | wc -l",
             "title": "commit count last 60 days",
+            "type": "command",
+            "cmd": "git-log-robust-since $((%(timestamp)s-60*60*60*24)) %(sha1)s | wc -l",
             "workdir": False,
         },
     },
