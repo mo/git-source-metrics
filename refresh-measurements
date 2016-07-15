@@ -5,7 +5,6 @@
 
 import os
 import sys
-import sets
 import stat
 import time
 import shutil
@@ -564,4 +563,3 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print
-        pass
