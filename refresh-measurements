@@ -18,7 +18,6 @@ import subprocess
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_DIR = "~/.git-source-metrics/"
 CODE_CACHE_DIR = "~/.git-source-metrics/code/"
-CYNICAL_EXTRA_SECONDS = 1
 
 def test_human_readable_time_span():
     # normal use cases
@@ -396,7 +395,7 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
             if not args.quiet:
                 measurement_elapsed_time = datetime.datetime.now() - measurement_start_time
                 seconds_per_measurement = measurement_elapsed_time.total_seconds() / measurements_done
-                estimated_seconds_left = CYNICAL_EXTRA_SECONDS + (measurements_total-measurements_done) * seconds_per_measurement
+                estimated_seconds_left = (measurements_total-measurements_done) * seconds_per_measurement
                 print >> sys.stderr, "%s: measuring %s (%s) ... %d%% done, est. time left: %s" % (repo_name, sha1, metric_name, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
             value = measure_metric(config["metrics"][metric_name], git_workdir, sha1, timestamp)
             if value != None:
@@ -443,7 +442,7 @@ def refresh_computed_metrics(config, selected_commits, data_filename, measured_d
             if not args.quiet:
                 measurement_elapsed_time = datetime.datetime.now() - measurement_start_time
                 seconds_per_measurement = measurement_elapsed_time.total_seconds() / measurements_done
-                estimated_seconds_left = CYNICAL_EXTRA_SECONDS + (measurements_total-measurements_done) * seconds_per_measurement
+                estimated_seconds_left = (measurements_total-measurements_done) * seconds_per_measurement
                 print >> sys.stderr, "%s: computing %s (%s) ... %d%% done, est. time left: %s" % (repo_name, sha1, metric_name, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
             value = compute_metric(config["metrics"][metric_name], repo_name, sha1, timestamp, selected_commits[repo_name], measured_data)
             if value != None:
