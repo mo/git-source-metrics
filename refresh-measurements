@@ -100,6 +100,8 @@ def spawn_git_fetcher(git_url):
 def fetch_latest_code(all_git_urls):
     longest_git_url_length = max([len(git_url) for git_url in all_git_urls])
     remaining_procs = [spawn_git_fetcher(git_url) for git_url in all_git_urls]
+    if not args.quiet:
+        print >> sys.stderr, "Fetching the latest code from all repositories ..."
     while len(remaining_procs) > 0:
         for (git_url, git_proc) in list(remaining_procs):
             git_proc.poll()
@@ -108,12 +110,14 @@ def fetch_latest_code(all_git_urls):
                 if git_proc.returncode == 0:
                     if not args.quiet:
                         print >> sys.stderr, "Finished fetching the latest code from repo: " + git_url.ljust(longest_git_url_length + 1),
-                        print >> sys.stderr, " (still waiting for %d more git processes to finish)" % len(remaining_procs)
                 else:
                     print >> sys.stderr, git_proc.stdout.read().strip()
                     print >> sys.stderr, git_proc.stderr.read().strip()
                     print >> sys.stderr, "ERROR: Failed (see error above) to fetch the latest code from repo: " + git_url.ljust(longest_git_url_length + 1),
-                    print >> sys.stderr, " (still waiting for %d more git processes to finish)" % len(remaining_procs)
+                if not args.quiet and remaining_procs:
+                    print >> sys.stderr, "(still waiting for %d more git processes to finish)" % len(remaining_procs),
+                if not args.quiet:
+                    print >> sys.stderr, ""
         time.sleep(1)
 
 
