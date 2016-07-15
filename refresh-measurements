@@ -122,7 +122,7 @@ def fetch_latest_code(all_git_urls):
 def git_reset_to(repo_name, git_workdir, sha1):
     if not args.quiet:
         print >> sys.stderr, "%s: git cleaning" % repo_name
-    subprocess.check_call("git clean -dxff", cwd=git_workdir, shell=True)
+    subprocess.check_call("git clean -q -dxff", cwd=git_workdir, shell=True)
     if not args.quiet:
         print >> sys.stderr, "%s: git resetting to %s" % (repo_name, sha1)
     subprocess.check_call("git reset -q --hard %s" % sha1, cwd=git_workdir, shell=True)
