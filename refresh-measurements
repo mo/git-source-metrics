@@ -138,6 +138,13 @@ def get_sparse_commits(repo_name, repo_config):
 
     all_xticks = []
     last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
+    if args.ignore_commits_before:
+        if len(args.ignore_commits_before) == 4:
+            commit_date_limit = datetime.datetime.strptime(args.ignore_commits_before, "%Y")
+        else:
+            commit_date_limit = datetime.datetime.strptime(args.ignore_commits_before, "%Y-%m-%d")
+    else:
+        commit_date_limit = datetime.datetime.min
 
     while len(sha1_and_timestamp_lines) > 0:
         sha1, commit_timestamp = sha1_and_timestamp_lines.pop(-1).split(" ", 1)
@@ -150,8 +157,9 @@ def get_sparse_commits(repo_name, repo_config):
                 print "WARNING: commit with sha1 %s in repo %s looks invalid, ignoring." % (sha1, repo_name)
             continue
         commit_date = datetime.datetime.fromtimestamp(int(commit_timestamp))
-        if commit_date.year < args.ignore_commits_before_year:
-            print "WARNING: commit with sha1 %s in repo %s is too old, ignoring." % (sha1, repo_name)
+        if commit_date < commit_date_limit:
+            if not args.quiet:
+                print "INFO: commit with sha1 %s in repo %s is too old, ignoring." % (sha1, repo_name)
             continue
         if commit_date < last_tick_commit_date:
             if not args.quiet:
@@ -548,10 +556,7 @@ if __name__ == '__main__':
 
         parser.add_argument("--skip-fetch", action="store_true", help="don't call 'git fetch', just process what is available locally (for debugging only)")
 
-        # Ignoring commits before year 1990 because golang repo starts with a
-        # few prank commits from the 70ties and this compressed the meaningful
-        # data visually in the finished chart.
-        parser.add_argument("--ignore-commits-before-year", metavar="YYYY", type=int, default=1990)
+        parser.add_argument("--ignore-commits-before", metavar="YYYY or YYYY-MM-DD")
 
         parser.add_argument("--include-all-measured-sha1s", action="store_true")
 
