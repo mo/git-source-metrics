@@ -216,10 +216,20 @@ def measure_metric(metric, git_workdir, sha1, timestamp):
         print >>sys.stderr, "DEBUG: " + metric_command
     child_env = os.environ.copy()
     child_env["PATH"] = os.path.join(SCRIPT_DIR, "metric-scripts") + ":" + child_env["PATH"]
-    value = subprocess.check_output(metric_command, cwd=git_workdir, env=child_env, shell=True).strip()
+    stdout_output = subprocess.check_output(metric_command, cwd=git_workdir, env=child_env, shell=True).strip()
     if args.debug:
-        print >>sys.stderr, "DEBUG: " + repr(value)
-    return int(value)
+        print >>sys.stderr, "DEBUG: " + repr(stdout_output)
+    try:
+        value = int(stdout_output)
+    except ValueError:
+        value = None
+        errmsg = ("ERROR: measurement failed because metric script output could not be converted to an int value\n" + \
+                  "  sha1: " + sha1 + "\n" + \
+                  "  metric name: " + metric["name"] + "\n" + \
+                  "  metric cmd: " + metric_command + "\n" + \
+                  "  metric script output: " + repr(stdout_output) + "\n")
+        sys.stderr.write(errmsg)
+    return value
 
 
 # While this script is running it saves timestamps at various moments so that
@@ -389,7 +399,8 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
                 estimated_seconds_left = CYNICAL_EXTRA_SECONDS + (measurements_total-measurements_done) * seconds_per_measurement
                 print >> sys.stderr, "%s: measuring %s (%s) ... %d%% done, est. time left: %s" % (repo_name, sha1, metric_name, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
             value = measure_metric(config["metrics"][metric_name], git_workdir, sha1, timestamp)
-            measured_data.add_data(repo_name, sha1, timestamp, metric_name, value)
+            if value != None:
+                measured_data.add_data(repo_name, sha1, timestamp, metric_name, value)
 
         measured_data.save_to_file(data_filename)
         save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
@@ -496,9 +507,15 @@ def print_summary(timing_data):
     print "Measurement took: " + human_readable_time_span(measurement_seconds)
     print
 
+def load_config():
+    config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
+    for (metric_name, metric_obj) in config["metrics"].iteritems():
+        metric_obj["name"] = metric_name
+    return config
+
 
 def main():
-    config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
+    config = load_config()
     data_filename = os.path.join(SCRIPT_DIR, "..", "data.pyon")
     jsdata_filename = os.path.join(SCRIPT_DIR, "..", "all_chart_data.js")
 
