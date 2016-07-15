@@ -104,11 +104,14 @@
             <span id="legendHelpArrow">&#x2B11;</span> <span>too much clutter? uncheck to temporarily hide metrics</span>
         </div>
         <div id="scalingButtonsContainer">
+            <input type="radio" name="y-axis-scaling" id="btnFixedZero" checked="checked" />
+            <label for="btnFixedZero">Fixed Y-axis (fit to data, always include zero)</label>
+
+            <input type="radio" name="y-axis-scaling" id="btnFixed" />
+            <label for="btnFixed">Fixed Y-axis (fit to data, with padding)</label>
+
             <input type="radio" name="y-axis-scaling" id="btnRescale" />
             <label for="btnRescale">Rescale Y-axis to currently visible data</label>
-
-            <input type="radio" name="y-axis-scaling" id="btnFixed" checked="checked" />
-            <label for="btnFixed">Fixed Y-axis range</label>
         </div>
     </div>
 </div>
@@ -138,6 +141,7 @@ document.getElementById('chart_select').focus()
 var allSeries = all_chart_data[params["chart"]]["chart_series"];
 var allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
 var allSeriesYMax = d3.max(allSeries, serie => d3.max(serie.data, datapoint => datapoint.y));
+var allSeriesYSpan = allSeriesYMax - allSeriesYMin;
 
 var graph = new Rickshaw.Graph( {
         element: document.querySelector("#chart"),
@@ -145,25 +149,32 @@ var graph = new Rickshaw.Graph( {
         height: 500,
         interpolation: "linear",
         stack: false,
-        series: allSeries,
-        min: allSeriesYMin,
-        max: allSeriesYMax*1.1,
+        series: allSeries
 } );
 graph.setRenderer('line');
 graph.render();
 
+var distanceFurthestFromZero = Math.max(Math.abs(allSeriesYMin), Math.abs(allSeriesYMax));
+$("#btnFixedZero").click(function (e) {
+    graph.configure({
+        min: Math.min(allSeriesYMin - 0.1*distanceFurthestFromZero, 0),
+        max: Math.max(allSeriesYMax + 0.1*distanceFurthestFromZero, 0),
+    });
+    graph.render();
+});
+$("#btnFixedZero").click();
+
 $("#btnFixed").click(function (e) {
     graph.configure({
-        min: allSeriesYMin,
-        max: allSeriesYMax*1.1,
+        min: allSeriesYMin - 0.1*allSeriesYSpan,
+        max: allSeriesYMax + 0.1*allSeriesYSpan,
     });
     graph.render();
 });
 
-
 $("#btnRescale").click(function (e) {
     graph.configure({
-        min: undefined,
+        min: "auto",
         max: undefined,
     });
     graph.render();
