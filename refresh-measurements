@@ -214,6 +214,9 @@ def measure_metric(metric, git_workdir, sha1, timestamp):
     if args.debug:
         print >>sys.stderr, "DEBUG: " + metric_command
     child_env = os.environ.copy()
+    external_metric_scripts_dir = os.path.join(SCRIPT_DIR, "..", "external-metric-scripts")
+    if os.path.exists(external_metric_scripts_dir):
+        child_env["PATH"] = external_metric_scripts_dir + ":" + child_env["PATH"]
     child_env["PATH"] = os.path.join(SCRIPT_DIR, "builtin-metric-scripts") + ":" + child_env["PATH"]
     stdout_output = subprocess.check_output(metric_command, cwd=git_workdir, env=child_env, shell=True).strip()
     if args.debug:
