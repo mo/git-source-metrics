@@ -18,6 +18,23 @@ function get_url_params()
 	return params
 }
 
+function build_url_string_from_url_params(params) {
+	var new_url = Object.keys(params).sort().map((key) => {
+		var val = params[key];
+		if (val.push) {
+			return val.map((v) => key + '=' + v)
+		}
+		return key + '=' + val;
+	}).reduce((acc, item) => {
+		return acc.concat(item);
+	}, []).join("&");
+	return '?' + new_url;
+}
+
+function reload_with_new_url_params(params) {
+	window.location = build_url_string_from_url_params(params);
+}
+
 function bytesToSize(bytes) {
 	var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
 	if (bytes == 0) return 'n/a';

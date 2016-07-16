@@ -86,7 +86,7 @@
 }
 </style>
 
-<select id="chart_select" onchange="javascript:window.location='?chart='+this.value">
+<select id="chart_select">
 </select>
 <br><br>
 
@@ -104,7 +104,7 @@
             <span id="legendHelpArrow">&#x2B11;</span> <span>too much clutter? uncheck to temporarily hide metrics</span>
         </div>
         <div id="scalingButtonsContainer">
-            <input type="radio" name="y-axis-scaling" id="btnFixedZero" checked="checked" />
+            <input type="radio" name="y-axis-scaling" id="btnFixedZero" />
             <label for="btnFixedZero">Fixed Y-axis (fit to data, always include zero)</label>
 
             <input type="radio" name="y-axis-scaling" id="btnFixed" />
@@ -137,6 +137,11 @@ for (var idx = 0; idx < chart_keys_sorted_by_title.length; idx++) {
 }
 document.getElementById('chart_select').value = params["chart"]
 document.getElementById('chart_select').focus()
+document.getElementById('chart_select').addEventListener("change", function () {
+    params["chart"] = this.value;
+    reload_with_new_url_params(params);
+});
+
 
 var allSeries = all_chart_data[params["chart"]]["chart_series"];
 var allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
@@ -156,29 +161,49 @@ graph.render();
 
 var distanceFurthestFromZero = Math.max(Math.abs(allSeriesYMin), Math.abs(allSeriesYMax));
 $("#btnFixedZero").click(function (e) {
-    graph.configure({
-        min: Math.min(allSeriesYMin - 0.1*distanceFurthestFromZero, 0),
-        max: Math.max(allSeriesYMax + 0.1*distanceFurthestFromZero, 0),
-    });
-    graph.render();
+    params["y-axis-scaling"] = "FixedZero";
+    reload_with_new_url_params(params);
 });
-$("#btnFixedZero").click();
 
 $("#btnFixed").click(function (e) {
-    graph.configure({
-        min: allSeriesYMin - 0.1*allSeriesYSpan,
-        max: allSeriesYMax + 0.1*allSeriesYSpan,
-    });
-    graph.render();
+    params["y-axis-scaling"] = "Fixed";
+    reload_with_new_url_params(params);
 });
 
 $("#btnRescale").click(function (e) {
-    graph.configure({
-        min: "auto",
-        max: undefined,
-    });
-    graph.render();
+    params["y-axis-scaling"] = "Rescale";
+    reload_with_new_url_params(params);
 });
+
+var allYAxisScalingMethods = ["FixedZero", "Fixed", "Rescale"];
+if (allYAxisScalingMethods.indexOf(params["y-axis-scaling"]) == -1) {
+    params["y-axis-scaling"] = "FixedZero";
+}
+$("#btn" + params["y-axis-scaling"]).attr("checked", "true");
+switch (params["y-axis-scaling"]) {
+    case "FixedZero":
+        graph.configure({
+            min: Math.min(allSeriesYMin - 0.1*distanceFurthestFromZero, 0),
+            max: Math.max(allSeriesYMax + 0.1*distanceFurthestFromZero, 0),
+        });
+        graph.render();
+        break;
+    case "Fixed":
+        graph.configure({
+            min: allSeriesYMin - 0.1*allSeriesYSpan,
+            max: allSeriesYMax + 0.1*allSeriesYSpan,
+        });
+        graph.render();
+        break;
+    case "Rescale":
+        graph.configure({
+            min: "auto",
+            max: undefined,
+        });
+        graph.render();
+        break;
+}
+
 
 function timestampToDateString(x) {
     return (new Date(x*1000)).toISOString().substring(0, 10)
