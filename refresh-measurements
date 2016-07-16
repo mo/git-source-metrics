@@ -304,7 +304,7 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
                 jsdata_temp_file.write("            'data': [")
                 series_data = measured_data.get_repo_metric_dict(series["repo"], series["metric"])
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))
-                if not args.include_all_measured_sha1s:
+                if not args.include_all_measured_data:
                     # TODO: try zip(*foo) here
                     repo_selected_sha1s = [sha1 for (sha1, commit_timestamp) in selected_commits[series["repo"]]]
                     series_data = filter(lambda (sha1, datapoint): sha1 in repo_selected_sha1s, series_data)
@@ -577,7 +577,7 @@ if __name__ == '__main__':
 
         parser.add_argument("--ignore-commits-before", metavar="YYYY or YYYY-MM-DD")
 
-        parser.add_argument("--include-all-measured-sha1s", action="store_true")
+        parser.add_argument("--include-all-measured-data", action="store_true")
 
         parser.add_argument("--delete-data-for-metric", metavar="METRIC_NAME", type=str)
         parser.add_argument("--delete-data-for-repo", metavar="REPO_NAME", type=str)
