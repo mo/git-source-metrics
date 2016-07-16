@@ -1,5 +1,6 @@
 {
     "env": {
+        "browser": true,
         "es6": true
     },
     "extends": "eslint:recommended",
@@ -26,7 +27,7 @@
             "always"
         ],
         "no-console": 0,
-        "no-unused-vars": [1],
+        "no-unused-vars": ["error", { "vars": "local", "args": "after-used" }],
         "comma-dangle": ["error", "only-multiline"]
     }
 }
