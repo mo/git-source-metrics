@@ -216,7 +216,7 @@ var hoverDetail = new Rickshaw.Graph.HoverDetail( {
         var sha1 = timestamp_to_sha1[x]
         return commit_date + " (" + sha1 + ")"
     },
-    yFormatter: function(y) { return y }
+    yFormatter: function(y) { return y.toLocaleString() }
 } );
 
 var slider = new Rickshaw.Graph.RangeSlider({
