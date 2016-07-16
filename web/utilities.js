@@ -3,8 +3,12 @@
  */
 function get_url_params()
 {
+    const questionMarkIdx = window.location.href.indexOf('?');
+    if (questionMarkIdx == -1) {
+        return {};
+    }
     const params = {};
-    const keyvals = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+    const keyvals = window.location.href.slice(questionMarkIdx + 1).split('&');
     for(var i = 0; i < keyvals.length; ++i)
     {
         const keyval = keyvals[i].split('=');
