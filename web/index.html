@@ -184,7 +184,7 @@ $("#btn" + params["y-axis-scaling"]).attr("checked", "true");
 switch (params["y-axis-scaling"]) {
     case "FixedZero":
         graph.configure({
-            min: Math.min(allSeriesYMin - 0.1*distanceFurthestFromZero, 0),
+            min: Math.min(allSeriesYMin, 0),
             max: Math.max(allSeriesYMax + 0.1*distanceFurthestFromZero, 0),
         });
         graph.render();
