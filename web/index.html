@@ -225,6 +225,7 @@ x_axis.render();
 var y_axis = new Rickshaw.Graph.Axis.Y( {
         graph: graph,
         orientation: 'left',
+        tickFormat: (v) => v.toLocaleString(),
         element: document.getElementById('y_axis'),
 } );
 y_axis.render();
