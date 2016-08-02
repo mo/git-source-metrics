@@ -535,7 +535,7 @@ def main():
 
     handle_delete_and_list_switches(config, measured_data, data_filename)
 
-    if not args.skip_fetch:
+    if not args.skip_fetch and not args.just_regenerate_jsdata:
         timing_data.fetch_start_time = datetime.datetime.now()
         git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
         fetch_latest_code(git_urls)
@@ -552,6 +552,11 @@ def main():
     # commit timestamps of two measured commits. The same set of selected commits
     # will then be used for all measured metrics as well as all computed metrics.
     selected_commits = select_commit_ticks(config)
+
+    if args.just_regenerate_jsdata:
+        print "Regenerating js data ..."
+        save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
+        sys.exit(0)
 
     # Make sure we have measured everything that can be measured directly
     # (i.e. doesn't depend on other metrics).
@@ -584,6 +589,7 @@ if __name__ == '__main__':
         parser.add_argument("--refresh-selected-metrics-only", nargs="+", metavar="METRIC_NAME")
 
         # other commands
+        parser.add_argument("--just-regenerate-jsdata", action="store_true")
         parser.add_argument("--delete-data-for-metric", metavar="METRIC_NAME", type=str)
         parser.add_argument("--delete-data-for-repo", metavar="REPO_NAME", type=str)
         parser.add_argument("--list-repos", action="store_true")
