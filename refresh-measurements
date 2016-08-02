@@ -191,7 +191,7 @@ def compute_moving_average(metric, repo_name, target_sha1, commit_timestamp, sel
     first_index = target_index - tick_width + 1
     # It's not possible to calculate a moving average unless we're at least
     # "tick_width" ticks into the series.
-    if first_index <  0:
+    if first_index < 0:
         return None
     summation = sum([underlying_data[sha1]["value"] for sha1 in selected_sha1s[first_index:target_index+1]])
     return summation / tick_width
