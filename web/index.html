@@ -213,6 +213,10 @@ function timestampToDateString(x) {
     return (new Date(x*1000)).toISOString().substring(0, 10)
 }
 
+function timestampToDatetimeString(x) {
+    return (new Date(x*1000)).toISOString().replace("T", " ").substring(0, 16)
+}
+
 var x_axis = new Rickshaw.Graph.Axis.X( {
     graph: graph,
     tickFormat: timestampToDateString,
@@ -243,9 +247,18 @@ var shelving = new Rickshaw.Graph.Behavior.Series.Toggle({
 var hoverDetail = new Rickshaw.Graph.HoverDetail( {
     graph: graph,
     xFormatter: function(x) {
-        var commit_date = timestampToDateString(x)
-        var sha1 = timestamp_to_sha1[x]
-        return commit_date + " (" + sha1 + ")"
+        var commit_date = timestampToDatetimeString(x)
+        // TODO: Object.values() when ES7 is usable
+        var sha1s = Object.keys(selected_commits).map(repo_name => {
+            const repo_commits = new Map(selected_commits[repo_name]);
+            const timestamp_commit_list = repo_commits.get(x);
+            if (timestamp_commit_list) {
+                return timestamp_commit_list.map(commit => commit.sha1.substring(1, 8) + " in " + repo_name).join(", ");
+            } else {
+                return undefined;
+            }
+        }).filter(s => s != undefined).join(", ");
+        return commit_date + " (" + sha1s + ")"
     },
     yFormatter: function(y) { return y.toLocaleString() }
 } );

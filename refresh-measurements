@@ -327,10 +327,21 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
         jsdata_temp_file.write("}\n")
 
         jsdata_temp_file.write("\n")
-        jsdata_temp_file.write("timestamp_to_sha1 = {\n")
+        jsdata_temp_file.write("const selected_commits = {\n")
         for repo_name, repo_selected_commits in selected_commits.iteritems():
+            jsdata_temp_file.write("\t'%s': [\n" % repo_name)
+            last_commit_timestamp = None
             for sha1, commit_timestamp in repo_selected_commits:
-                jsdata_temp_file.write("    %s: '%s',\n" % (commit_timestamp, sha1))
+                if commit_timestamp != last_commit_timestamp:
+                    if last_commit_timestamp != None:
+                        jsdata_temp_file.write("]],\n")
+                    jsdata_temp_file.write("\t\t[%s, [" % commit_timestamp)
+                    jsdata_temp_file.write("{sha1: '%s'}" % sha1)
+                else:
+                    jsdata_temp_file.write("\n,\t\t\t{sha1: '%s'}" % sha1)
+                last_commit_timestamp = commit_timestamp
+            jsdata_temp_file.write("]],\n")
+            jsdata_temp_file.write("\t],\n")
         jsdata_temp_file.write("}\n")
 
     # when file is written, move it into place
