@@ -301,6 +301,7 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
                 metric_title = all_metrics[series["metric"]]["title"].replace("'", r"\'")
                 jsdata_temp_file.write("            name: '%s in %s',\n" % (metric_title, series["repo"]))
                 jsdata_temp_file.write("            color: '%s',\n" % series["color"])
+                jsdata_temp_file.write("            repo: '%s',\n" % series["repo"])
                 jsdata_temp_file.write("            data: [")
                 series_data = measured_data.get_repo_metric_dict(series["repo"], series["metric"])
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))

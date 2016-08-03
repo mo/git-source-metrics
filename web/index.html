@@ -146,6 +146,7 @@ document.getElementById('chart_select').addEventListener("change", function () {
 const selected_commits_map = {};
 Object.keys(selected_commits).forEach(repo_name => selected_commits_map[repo_name] = new Map(selected_commits[repo_name]));
 var allSeries = all_chart_data[params["chart"]]["chart_series"];
+const chartRepos = new Set(allSeries.map(serie => serie.repo));
 var allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
 var allSeriesYMax = d3.max(allSeries, serie => d3.max(serie.data, datapoint => datapoint.y));
 var allSeriesYSpan = allSeriesYMax - allSeriesYMin;
@@ -249,8 +250,7 @@ var hoverDetail = new Rickshaw.Graph.HoverDetail( {
     graph: graph,
     xFormatter: function(x) {
         var commit_date = timestampToDatetimeString(x)
-        // TODO: Object.values() when ES7 is usable
-        var sha1s = Object.keys(selected_commits).map(repo_name => {
+        var sha1s = [...chartRepos].map(repo_name => {
             const repo_commits = selected_commits_map[repo_name];
             const timestamp_commit_list = repo_commits.get(x);
             if (timestamp_commit_list) {
