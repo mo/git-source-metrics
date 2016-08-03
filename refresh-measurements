@@ -291,7 +291,7 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
     all_metrics = config["metrics"]
     jsdata_tempfile_oshandle, jsdata_tempfile_name = tempfile.mkstemp()
     with open(jsdata_tempfile_name, "w") as jsdata_temp_file:
-        jsdata_temp_file.write("all_chart_data = {\n")
+        jsdata_temp_file.write("const all_chart_data = {\n")
         for chart_name, chart_config in all_charts.iteritems():
             jsdata_temp_file.write("    '%s': {\n" % chart_name)
             jsdata_temp_file.write("        chart_title: '%s',\n" % chart_config["chart_title"])
