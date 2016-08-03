@@ -315,14 +315,14 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
                 jsdata_temp_file.write("            ],\n")
                 jsdata_temp_file.write("        },\n")
             jsdata_temp_file.write("        ],\n")
-            jsdata_temp_file.write("        'chart_annotations': {\n")
             if "annotations" in chart_config:
+                jsdata_temp_file.write("        'chart_annotations': {\n")
                 for annotation_set_name in chart_config["annotations"]:
                     annotations = config["annotation_sets"][annotation_set_name]
                     for date, description in annotations.iteritems():
                         timestamp = datetime.datetime.strptime(date, "%Y-%m-%d").strftime("%s")
                         jsdata_temp_file.write("        '%s': '%s',\n" % (timestamp, description))
-            jsdata_temp_file.write("        },\n")
+                jsdata_temp_file.write("        },\n")
             jsdata_temp_file.write("    },\n")
         jsdata_temp_file.write("}\n")
 
