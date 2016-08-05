@@ -56,6 +56,8 @@
 }
 #optionsPanel {
     padding: 0px 10px;
+    /* overflow:auto makes #optionsPanel DIV large enough to contain the float children. */
+    overflow: auto;
 }
 #optionsPanel input {
     float: left;
@@ -84,6 +86,20 @@
 }
 #scalingButtonsContainer {
     margin-top: 20px;
+}
+#selectionInfo {
+    width: 300px;
+    background: #F8F8F8;
+    padding: 10px;
+    margin-top: 20px;
+    font-family: courier new;
+    font-size: 10pt;
+    white-space: pre-wrap;
+}
+.detail {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
 }
 </style>
 
@@ -115,6 +131,7 @@
             <label for="btnRescale">Rescale Y-axis to currently visible data</label>
         </div>
     </div>
+    <div id="selectionInfo"></div>
 </div>
 
 <script>
@@ -280,4 +297,111 @@ for (timestamp in annotations) {
 }
 annotator.update();
 
+const chartElement = document.querySelector("#chart");
+chartElement.style.position = "relative";
+const chartElementBoundingRect = chartElement.getBoundingClientRect();
+const selectionOutline = chartElement.appendChild(document.createElement("div"));
+selectionOutline.className += "selection-outline";
+selectionOutline.style.position = "absolute";
+selectionOutline.style.border = "1px dashed black";
+selectionOutline.style['pointer-events'] = "none";
+let isMouseDown = false;
+let selStartX;
+function getTimeAtChartXCoord(x) {
+    return new Date(1000*graph.x.invert(x - chartElementBoundingRect.left));
+}
+
+function getFirstAndLastCommitInRange(timestamp_from, timestamp_to, repo_name) {
+    const repoCommits = selected_commits_map[repo_name];
+    let first_timestamp_in_range = undefined;
+    let last_commit_timestamp = undefined;
+    for (var [timestamp, commit] of repoCommits.entries()) {
+        if (timestamp_from < timestamp && timestamp < timestamp_to) {
+            if (!first_timestamp_in_range || timestamp - timestamp_from < first_timestamp_in_range - timestamp_from) {
+                first_timestamp_in_range = timestamp;
+            }
+            if (!last_commit_timestamp || timestamp_to - timestamp < timestamp_to - last_commit_timestamp) {
+                last_commit_timestamp = timestamp;
+            }
+        }
+    }
+    let first_commit = undefined;
+    let last_commit = undefined;
+    if (first_timestamp_in_range) {
+        // If there was at least one timestamp in the range, then we'll have
+        // both a first_timestamp_in_range and a last_commit_timestamp.
+        first_commit = repoCommits.get(first_timestamp_in_range)[0];
+        last_commit = repoCommits.get(last_commit_timestamp).slice(-1)[0];
+    }
+    return [first_commit, last_commit];
+}
+
+chartElement.addEventListener("mousedown", (ev) => {
+    selStartX = ev.clientX;
+    selectionOutline.style.left = ev.clientX - chartElementBoundingRect.left;
+    selectionOutline.style.top = 0;
+    selectionOutline.style.width = 0;
+    selectionOutline.style.height = chartElement.clientHeight - 2;
+    isMouseDown = true;
+    // Selection should remain hidden until cursor has moved at least 10 px.
+    hideSelection();
+    chartElement.querySelector(".detail").style.display = "none";
+    ev.preventDefault();
+});
+chartElement.addEventListener("mousemove", (ev) => {
+    const selEndX = ev.clientX;
+    if (isMouseDown) {
+        const selectionWidth = Math.abs(selEndX - selStartX);
+        selectionOutline.style.left = Math.min(selStartX, selEndX) - chartElementBoundingRect.left;
+        selectionOutline.style.width = selectionWidth;
+
+        const from = getTimeAtChartXCoord(selStartX);
+        const from_timestamp = graph.x.invert(selStartX - chartElementBoundingRect.left);
+        const to = getTimeAtChartXCoord(selEndX);
+        const to_timestamp = graph.x.invert(selEndX - chartElementBoundingRect.left);
+        let selectionText = '';
+        selectionText += 'From: ' + from.toISOString().replace("T", " ").slice(0, 16) + '\n';
+        selectionText += '  To: ' + to.toISOString().replace("T", " ").slice(0, 16) + '\n';
+        selectionText += '\n';
+        [...chartRepos].map(repo_name => {
+            let [first_commit, last_commit] = getFirstAndLastCommitInRange(from_timestamp, to_timestamp, repo_name);
+            if (first_commit) {
+                selectionText += 'First commit in ' + repo_name + ':\n' + first_commit.sha1.substring(1, 8) + " " + first_commit.msg + '\n\n';
+                selectionText += 'Last commit in ' + repo_name + ':\n' + last_commit.sha1.substring(1, 8) + " " + last_commit.msg + '\n\n';
+            } else {
+                selectionText += 'Selected period does not contain any commits in repo: ' + repo_name + '\n\n';
+            }
+        });
+        document.querySelector("#selectionInfo").innerText = selectionText;
+
+        if (selectionWidth > 10) {
+            selectionOutline.style.display = "block";
+        }
+    }
+});
+chartElement.addEventListener("mouseup", (ev) => {
+    if (isMouseDown) {
+        isMouseDown = false;
+        const selEndX = ev.clientX;
+        const selectionWidth = Math.abs(selEndX - selStartX);
+        chartElement.querySelector(".detail").style.display = "block";
+        if (selectionWidth < 10) {
+            // Classify this "drag" as a "click" instead and remove selection
+            hideSelection();
+        }
+    }
+});
+chartElement.addEventListener("mouseleave", (ev) => {
+    if (isMouseDown) {
+        isMouseDown = false;
+    }
+});
+slider.onSlide(() => {
+    hideSelection();
+});
+function hideSelection() {
+    selectionOutline.style.display = "none";
+    selectionInfo.innerText = "Nothing selected. Drag-select a part of the chart using the mouse to create a selection."
+}
+hideSelection();
 </script>
