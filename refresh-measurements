@@ -5,6 +5,7 @@
 
 import os
 import sys
+import json
 import stat
 import time
 import shutil
@@ -131,9 +132,8 @@ def git_reset_to(repo_name, git_workdir, sha1):
 def get_sparse_commits(repo_name, repo_config):
     branch = "origin/" + repo_config.get("branch", "master")
     git_workdir = local_workingdir(repo_config["git_url"])
-    git_log_cmd = "git log --first-parent --pretty=format:'%H %ct' " + branch
-    git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True)
-    sha1_and_timestamp_lines = git_log_output.splitlines()
+    git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
+    git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).splitlines()
 
     all_xticks = []
     last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
@@ -145,8 +145,8 @@ def get_sparse_commits(repo_name, repo_config):
     else:
         commit_date_limit = datetime.datetime.min
 
-    while len(sha1_and_timestamp_lines) > 0:
-        sha1, commit_timestamp = sha1_and_timestamp_lines.pop(-1).split(" ", 1)
+    while len(git_log_output) > 0:
+        sha1, commit_timestamp, subject = git_log_output.pop(-1).split(" ", 2)
         if not commit_timestamp:
             if not args.quiet:
                 # Happens for 281a10c59d5a6522b2bebc6f78c165816d1f8421 in https://github.com/mozilla/gecko-dev
@@ -165,7 +165,7 @@ def get_sparse_commits(repo_name, repo_config):
                 print "WARNING: commit with sha1 %s in repo %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % (sha1, repo_name)
             continue
         if not "tick_gap_days" in repo_config or (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
-            all_xticks.append((sha1, commit_timestamp))
+            all_xticks.append((sha1, commit_timestamp, subject))
             last_tick_commit_date = commit_date
 
     return all_xticks
@@ -307,7 +307,7 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))
                 if not args.include_all_measured_data:
                     # TODO: try zip(*foo) here
-                    repo_selected_sha1s = [sha1 for (sha1, commit_timestamp) in selected_commits[series["repo"]]]
+                    repo_selected_sha1s = [sha1 for (sha1, commit_timestamp, msg) in selected_commits[series["repo"]]]
                     series_data = filter(lambda (sha1, datapoint): sha1 in repo_selected_sha1s, series_data)
                 for idx, (sha1, datapoint) in enumerate(series_data):
                     if idx:
@@ -332,14 +332,14 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
         for repo_name, repo_selected_commits in selected_commits.iteritems():
             jsdata_temp_file.write("\t'%s': [\n" % repo_name)
             last_commit_timestamp = None
-            for sha1, commit_timestamp in repo_selected_commits:
+            for sha1, commit_timestamp, msg in repo_selected_commits:
                 if commit_timestamp != last_commit_timestamp:
                     if last_commit_timestamp != None:
                         jsdata_temp_file.write("]],\n")
                     jsdata_temp_file.write("\t\t[%s, [" % commit_timestamp)
-                    jsdata_temp_file.write("{sha1: '%s'}" % sha1)
+                    jsdata_temp_file.write("{sha1: '%s', msg: %s}" % (sha1, json.dumps(msg)))
                 else:
-                    jsdata_temp_file.write("\n,\t\t\t{sha1: '%s'}" % sha1)
+                    jsdata_temp_file.write("\n,\t\t\t{sha1: '%s', msg: %s}" % (sha1, json.dumps(msg)))
                 last_commit_timestamp = commit_timestamp
             jsdata_temp_file.write("]],\n")
             jsdata_temp_file.write("\t],\n")
@@ -372,7 +372,7 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
 
     todo_list = []
     for repo_name, repo_metrics in repo_to_metrics_map.iteritems():
-        for sha1, commit_timestamp in selected_commits[repo_name]:
+        for sha1, commit_timestamp, msg in selected_commits[repo_name]:
             metrics_that_lack_data_for_this_sha1 = []
             commit_datetime = datetime.datetime.fromtimestamp(int(commit_timestamp))
             for metric_name in repo_metrics:

@@ -254,7 +254,7 @@ var hoverDetail = new Rickshaw.Graph.HoverDetail( {
             const repo_commits = selected_commits_map[repo_name];
             const timestamp_commit_list = repo_commits.get(x);
             if (timestamp_commit_list) {
-                return timestamp_commit_list.map(commit => commit.sha1.substring(1, 8) + " in " + repo_name).join(", ");
+                return timestamp_commit_list.map(commit => commit.sha1.substring(1, 8) + " in " + repo_name + ": " + commit.msg).join(", ");
             } else {
                 return undefined;
             }
