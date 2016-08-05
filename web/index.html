@@ -135,20 +135,20 @@
 </div>
 
 <script>
-var params = get_url_params();
+const params = get_url_params();
 if (!(params["chart"] in all_chart_data) && Object.keys(all_chart_data).length > 0) {
     params["chart"] = Object.keys(all_chart_data)[0];
 }
 
-var chart_keys_sorted_by_title = Object.keys(all_chart_data).sort(function(key1, key2) {
-    var title1 = all_chart_data[key1]["chart_title"];
-    var title2 = all_chart_data[key2]["chart_title"];
+const chart_keys_sorted_by_title = Object.keys(all_chart_data).sort(function(key1, key2) {
+    const title1 = all_chart_data[key1]["chart_title"];
+    const title2 = all_chart_data[key2]["chart_title"];
     return title1.localeCompare(title2);
 });
 
-for (var idx = 0; idx < chart_keys_sorted_by_title.length; idx++) {
+for (let idx = 0; idx < chart_keys_sorted_by_title.length; idx++) {
     key = chart_keys_sorted_by_title[idx];
-    var option = document.createElement("option");
+    const option = document.createElement("option");
     option.innerHTML = all_chart_data[key]["chart_title"];
     option.value = key;
     document.getElementById("chart_select").appendChild(option);
@@ -162,13 +162,13 @@ document.getElementById('chart_select').addEventListener("change", function () {
 
 const selected_commits_map = {};
 Object.keys(selected_commits).forEach(repo_name => selected_commits_map[repo_name] = new Map(selected_commits[repo_name]));
-var allSeries = all_chart_data[params["chart"]]["chart_series"];
+const allSeries = all_chart_data[params["chart"]]["chart_series"];
 const chartRepos = new Set(allSeries.map(serie => serie.repo));
-var allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
-var allSeriesYMax = d3.max(allSeries, serie => d3.max(serie.data, datapoint => datapoint.y));
-var allSeriesYSpan = allSeriesYMax - allSeriesYMin;
+const allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
+const allSeriesYMax = d3.max(allSeries, serie => d3.max(serie.data, datapoint => datapoint.y));
+const allSeriesYSpan = allSeriesYMax - allSeriesYMin;
 
-var graph = new Rickshaw.Graph( {
+const graph = new Rickshaw.Graph( {
         element: document.querySelector("#chart"),
         width: 1100,
         height: 500,
@@ -179,7 +179,7 @@ var graph = new Rickshaw.Graph( {
 graph.setRenderer('line');
 graph.render();
 
-var distanceFurthestFromZero = Math.max(Math.abs(allSeriesYMin), Math.abs(allSeriesYMax));
+const distanceFurthestFromZero = Math.max(Math.abs(allSeriesYMin), Math.abs(allSeriesYMax));
 $("#btnFixedZero").click(function (e) {
     params["y-axis-scaling"] = "FixedZero";
     reload_with_new_url_params(params);
@@ -195,7 +195,7 @@ $("#btnRescale").click(function (e) {
     reload_with_new_url_params(params);
 });
 
-var allYAxisScalingMethods = ["FixedZero", "Fixed", "Rescale"];
+const allYAxisScalingMethods = ["FixedZero", "Fixed", "Rescale"];
 if (allYAxisScalingMethods.indexOf(params["y-axis-scaling"]) == -1) {
     params["y-axis-scaling"] = "FixedZero";
 }
@@ -245,7 +245,7 @@ var x_axis = new Rickshaw.Graph.Axis.X( {
 } );
 x_axis.render();
 
-var y_axis = new Rickshaw.Graph.Axis.Y( {
+const y_axis = new Rickshaw.Graph.Axis.Y( {
         graph: graph,
         orientation: 'left',
         tickFormat: (v) => v.toLocaleString(),
@@ -253,21 +253,21 @@ var y_axis = new Rickshaw.Graph.Axis.Y( {
 } );
 y_axis.render();
 
-var legend = new Rickshaw.Graph.Legend( {
+const legend = new Rickshaw.Graph.Legend( {
         element: document.querySelector('#legend'),
         graph: graph
 } );
 
-var shelving = new Rickshaw.Graph.Behavior.Series.Toggle({
+const shelving = new Rickshaw.Graph.Behavior.Series.Toggle({
     graph: graph,
     legend: legend
 });
 
-var hoverDetail = new Rickshaw.Graph.HoverDetail( {
+const hoverDetail = new Rickshaw.Graph.HoverDetail( {
     graph: graph,
     xFormatter: function(x) {
-        var commit_date = timestampToDatetimeString(x)
-        var sha1s = [...chartRepos].map(repo_name => {
+        const commit_date = timestampToDatetimeString(x)
+        const sha1s = [...chartRepos].map(repo_name => {
             const repo_commits = selected_commits_map[repo_name];
             const timestamp_commit_list = repo_commits.get(x);
             if (timestamp_commit_list) {
@@ -281,17 +281,17 @@ var hoverDetail = new Rickshaw.Graph.HoverDetail( {
     yFormatter: function(y) { return y.toLocaleString() }
 } );
 
-var slider = new Rickshaw.Graph.RangeSlider({
+const slider = new Rickshaw.Graph.RangeSlider({
     graph: graph,
     element: document.querySelector('#range_slider')
 });
 
-var annotator = new Rickshaw.Graph.Annotate({
+const annotator = new Rickshaw.Graph.Annotate({
     graph: graph,
     element: document.querySelector('#annotation_timeline')
 });
 
-var annotations = all_chart_data[params["chart"]]["chart_annotations"]
+const annotations = all_chart_data[params["chart"]]["chart_annotations"]
 for (timestamp in annotations) {
     annotator.add(timestamp, timestampToDateString(timestamp) + ": " + annotations[timestamp]);
 }
