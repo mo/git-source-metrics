@@ -205,10 +205,11 @@ def compute_metric(metric, repo_name, sha1, commit_timestamp, selected_commits, 
         sys.exit(1)
 
 
-def measure_metric(metric, git_workdir, sha1, timestamp):
+def measure_metric(metric, target, git_workdir, sha1, timestamp):
     cmd_params_dict = {
         "sha1": sha1,
         "timestamp": timestamp,
+        "target": target,
     }
     metric_command = metric["cmd"] % cmd_params_dict
     if args.debug:
@@ -298,12 +299,18 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
             jsdata_temp_file.write("        chart_series: [\n")
             for series in chart_config["chart_series"]:
                 jsdata_temp_file.write("        {\n")
-                metric_title = all_metrics[series["metric"]]["title"].replace("'", r"\'")
-                jsdata_temp_file.write("            name: '%s in %s',\n" % (metric_title, series["repo"]))
+                target = series.get("target", None)
+                title_format_dict = {
+                    "target": target,
+                }
+                metric_title = all_metrics[series["metric"]]["title"].replace("'", r"\'") % title_format_dict
+                series_title = metric_title
+                jsdata_temp_file.write("            name: '%s in %s',\n" % (series_title, series["repo"]))
                 jsdata_temp_file.write("            color: '%s',\n" % series["color"])
                 jsdata_temp_file.write("            repo: '%s',\n" % series["repo"])
                 jsdata_temp_file.write("            data: [")
-                series_data = measured_data.get_repo_metric_dict(series["repo"], series["metric"])
+                datapoint_type = get_datapoint_type(series["metric"], target)
+                series_data = measured_data.get_repo_metric_dict(series["repo"], datapoint_type)
                 series_data = sorted(series_data.items(), key=lambda (sha1, datapoint): int(datapoint["timestamp"]))
                 if not args.include_all_measured_data:
                     # TODO: try zip(*foo) here
@@ -363,19 +370,26 @@ def select_commit_ticks(config):
     return selected_commits
 
 
+def get_datapoint_type(metric_name, target):
+    if not target:
+        return metric_name
+    else:
+        return metric_name + ":" + target
+
+
 def refresh_measurements(config, selected_commits, data_filename, measured_data, jsdata_filename):
-    repo_to_metrics_map = {}
+    repo_to_needed_measurements_map = {}
     for chart_name, chart in config["charts"].iteritems():
         for series in chart["chart_series"]:
             if get_metric_type(config, series["metric"]) == "command":
-                repo_to_metrics_map.setdefault(series["repo"], set()).add(series["metric"])
+                repo_to_needed_measurements_map.setdefault(series["repo"], set()).add((series["metric"], series.get("target", None)))
 
     todo_list = []
-    for repo_name, repo_metrics in repo_to_metrics_map.iteritems():
+    for repo_name, repo_needed_measurements in repo_to_needed_measurements_map.iteritems():
         for sha1, commit_timestamp, msg in selected_commits[repo_name]:
-            metrics_that_lack_data_for_this_sha1 = []
+            measurements_needed_for_this_sha1 = []
             commit_datetime = datetime.datetime.fromtimestamp(int(commit_timestamp))
-            for metric_name in repo_metrics:
+            for metric_name, target in repo_needed_measurements:
                 if args.refresh_selected_metrics_only and metric_name not in args.refresh_selected_metrics_only:
                     continue
                 too_old = False
@@ -384,22 +398,22 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
                     too_old = commit_datetime < datetime.datetime.strptime(metric_start_date, "%Y-%m-%d")
 
                 if not too_old and not measured_data.contains_data_for(repo_name, sha1, metric_name):
-                    metrics_that_lack_data_for_this_sha1.append(metric_name)
-            if len(metrics_that_lack_data_for_this_sha1) > 0:
-                todo_list.append((repo_name, sha1, commit_timestamp, metrics_that_lack_data_for_this_sha1))
+                    measurements_needed_for_this_sha1.append((metric_name, target))
+            if len(measurements_needed_for_this_sha1) > 0:
+                todo_list.append((repo_name, sha1, commit_timestamp, measurements_needed_for_this_sha1))
 
     random.shuffle(todo_list)
 
     measurements_done = 0
     measurements_total = 0
-    for (_, sha1, _, metrics_that_lack_data_for_this_sha1) in todo_list:
-        measurements_total += len(metrics_that_lack_data_for_this_sha1)
+    for (_, sha1, _, measurements_needed_for_this_sha1) in todo_list:
+        measurements_total += len(measurements_needed_for_this_sha1)
     measurement_start_time = datetime.datetime.now()
-    for (repo_name, sha1, timestamp, metrics_that_lack_data_for_this_sha1) in todo_list:
+    for (repo_name, sha1, timestamp, measurements_needed_for_this_sha1) in todo_list:
         git_workdir = local_workingdir(config["git_repos"][repo_name]["git_url"])
 
         atleast_one_metric_needs_a_reset_workdir = False
-        for metric_name in metrics_that_lack_data_for_this_sha1:
+        for metric_name, target in measurements_needed_for_this_sha1:
             if config["metrics"][metric_name].get("workdir", True):
                 atleast_one_metric_needs_a_reset_workdir = True
                 break
@@ -407,16 +421,21 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
         if atleast_one_metric_needs_a_reset_workdir:
             git_reset_to(repo_name, git_workdir, sha1)
 
-        for metric_name in metrics_that_lack_data_for_this_sha1:
+        for metric_name, target in measurements_needed_for_this_sha1:
             measurements_done += 1
             if not args.quiet:
                 measurement_elapsed_time = datetime.datetime.now() - measurement_start_time
                 seconds_per_measurement = measurement_elapsed_time.total_seconds() / measurements_done
                 estimated_seconds_left = (measurements_total-measurements_done) * seconds_per_measurement
-                print >> sys.stderr, "%s: measuring %s (%s) ... %d%% done, est. time left: %s" % (repo_name, sha1, metric_name, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
-            value = measure_metric(config["metrics"][metric_name], git_workdir, sha1, timestamp)
+                if target:
+                    target_suffix = " for " + target
+                else:
+                    target_suffix = ""
+                print >> sys.stderr, "%s: measuring %s%s at %s ... %d%% done, est. time left: %s" % (repo_name, metric_name, target_suffix, sha1, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
+            value = measure_metric(config["metrics"][metric_name], target, git_workdir, sha1, timestamp)
             if value != None:
-                measured_data.add_data(repo_name, sha1, timestamp, metric_name, value)
+                datapoint_type = get_datapoint_type(metric_name, target)
+                measured_data.add_data(repo_name, sha1, timestamp, datapoint_type, value)
 
         measured_data.save_to_file(data_filename)
         save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
@@ -525,10 +544,19 @@ def print_summary(timing_data):
     print "Measurement took: " + human_readable_time_span(measurement_seconds)
     print
 
+
+def validate_config(config):
+    for (metric_name, metric_obj) in config["metrics"].iteritems():
+        if ":" in metric_name:
+            print >> sys.stderr, "ERROR: metric names may not contain the character ':', found invalid metric name '" + metric_name + "'"
+            sys.exit(1)
+
+
 def load_config():
     config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
     for (metric_name, metric_obj) in config["metrics"].iteritems():
         metric_obj["name"] = metric_name
+    validate_config(config)
     return config
 
 
