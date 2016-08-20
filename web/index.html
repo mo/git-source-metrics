@@ -349,10 +349,12 @@ chartElement.addEventListener("mousedown", (ev) => {
     ev.preventDefault();
 });
 function updateSelectionInfo(selStartX, selEndX) {
-    const from = getTimeAtChartXCoord(selStartX);
-    const from_timestamp = graph.x.invert(selStartX - chartElementBoundingRect.left);
-    const to = getTimeAtChartXCoord(selEndX);
-    const to_timestamp = graph.x.invert(selEndX - chartElementBoundingRect.left);
+    const selLowerBound = Math.min(selStartX, selEndX);
+    const selUpperBound = Math.max(selStartX, selEndX);
+    const from = getTimeAtChartXCoord(selLowerBound);
+    const from_timestamp = graph.x.invert(selLowerBound - chartElementBoundingRect.left);
+    const to = getTimeAtChartXCoord(selUpperBound);
+    const to_timestamp = graph.x.invert(selUpperBound - chartElementBoundingRect.left);
     let selectionText = '';
     selectionText += 'From: ' + from.toISOString().replace("T", " ").slice(0, 16) + '\n';
     selectionText += '  To: ' + to.toISOString().replace("T", " ").slice(0, 16) + '\n';
