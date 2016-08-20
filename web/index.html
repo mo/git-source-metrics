@@ -271,7 +271,7 @@ const hoverDetail = new Rickshaw.Graph.HoverDetail( {
             const repo_commits = selected_commits_map[repo_name];
             const timestamp_commit_list = repo_commits.get(x);
             if (timestamp_commit_list) {
-                return timestamp_commit_list.map(commit => commit.sha1.substring(1, 8) + " in " + repo_name + ": " + commit.msg).join(", ");
+                return timestamp_commit_list.map(commit => commit.sha1.substring(0, 8) + " in " + repo_name + ": " + commit.msg).join(", ");
             } else {
                 return undefined;
             }
@@ -366,8 +366,8 @@ chartElement.addEventListener("mousemove", (ev) => {
         [...chartRepos].map(repo_name => {
             let [first_commit, last_commit] = getFirstAndLastCommitInRange(from_timestamp, to_timestamp, repo_name);
             if (first_commit) {
-                selectionText += 'First commit in ' + repo_name + ':\n' + first_commit.sha1.substring(1, 8) + " " + first_commit.msg + '\n\n';
-                selectionText += 'Last commit in ' + repo_name + ':\n' + last_commit.sha1.substring(1, 8) + " " + last_commit.msg + '\n\n';
+                selectionText += 'First commit in ' + repo_name + ':\n' + first_commit.sha1.substring(0, 8) + " " + first_commit.msg + '\n\n';
+                selectionText += 'Last commit in ' + repo_name + ':\n' + last_commit.sha1.substring(0, 8) + " " + last_commit.msg + '\n\n';
             } else {
                 selectionText += 'Selected period does not contain any commits in repo: ' + repo_name + '\n\n';
             }
