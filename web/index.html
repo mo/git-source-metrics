@@ -1,4 +1,5 @@
 <!doctype>
+<meta charset="utf-8">
 <link type="text/css" rel="stylesheet" href="thirdparty/rickshaw.css">
 <script src="thirdparty/d3.v3.js"></script>
 <script src="thirdparty/d3.layout.min.js"></script>
@@ -87,14 +88,47 @@
 #scalingButtonsContainer {
     margin-top: 20px;
 }
-#selectionInfo {
+#selActive, #selInactive {
     width: 300px;
     background: #F8F8F8;
     padding: 10px;
     margin-top: 20px;
-    font-family: courier new;
-    font-size: 10pt;
-    white-space: pre-wrap;
+    font-family: arial;
+    font-size: 9pt;
+}
+#selActive tr td:first-child {
+    font-weight: bold;
+    padding-right: 10px;
+}
+#selDiffContainer {
+    margin-top: 10px;
+}
+#selActive .colorbox {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    border-radius: 2px;
+}
+#selActive .diffWrapper {
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+#selActive .diffWrapperRight {
+    width: calc(100% - 20px);
+    margin-left: 3px;
+}
+.diffValue {
+    background: #E8E8E8;
+    margin: 1px;
+    padding: 4px;
+    font-weight: bold;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    cursor: pointer;
+}
+#selActive .diffWrapper > * {
+    float: left;
 }
 .detail {
     user-select: none;
@@ -131,7 +165,17 @@
             <label for="btnRescale">Rescale Y-axis to currently visible data</label>
         </div>
     </div>
-    <div id="selectionInfo"></div>
+    <div>
+        <div id="selInactive">Nothing selected. Drag-select a part of the chart using the mouse to create a selection.</div>
+        <div id="selActive">
+            <table>
+            <tr><td>From:</td><td id="selLeftTime"></td></tr>
+            <tr><td>To:</td><td id="selRightTime"></td></tr>
+            </table>
+            <div id="selDiffContainer"></div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -336,6 +380,29 @@ function getFirstAndLastCommitInRange(timestampFrom, timestampTo, repoName) {
     return [firstCommit, lastCommit];
 }
 
+function getFirstAndLastDatapointInRange(timestampFrom, timestampTo, series) {
+    let firstDatapointInRange = undefined;
+    let lastDatapointInRange = undefined;
+    for (var datapoint of series.data) {
+        const x = datapoint.x;
+        const y = datapoint.y;
+        if (timestampFrom < x && x < timestampTo) {
+            if (!firstDatapointInRange || x - timestampFrom < firstDatapointInRange.x - timestampFrom) {
+                firstDatapointInRange = datapoint;
+            }
+            if (!lastDatapointInRange || timestampTo - x < timestampTo - lastDatapointInRange.x) {
+                lastDatapointInRange = datapoint;
+            }
+        }
+    }
+    if (firstDatapointInRange) {
+        const repoCommits = selectedCommitsMap[series.repo];
+        firstDatapointInRange.commit = repoCommits.get(firstDatapointInRange.x)[0];
+        lastDatapointInRange.commit = repoCommits.get(lastDatapointInRange.x).slice(-1)[0];
+    }
+    return [firstDatapointInRange, lastDatapointInRange];
+}
+
 chartElement.addEventListener("mousedown", (ev) => {
     selStartX = ev.clientX;
     selectionOutline.style.left = ev.clientX - chartElementBoundingRect.left;
@@ -355,20 +422,55 @@ function updateSelectionInfo(selStartX, selEndX) {
     const fromTimestamp = graph.x.invert(selLeft - chartElementBoundingRect.left);
     const to = getTimeAtChartXCoord(selRight);
     const toTimestamp = graph.x.invert(selRight - chartElementBoundingRect.left);
-    let selectionText = '';
-    selectionText += 'From: ' + from.toISOString().replace("T", " ").slice(0, 16) + '\n';
-    selectionText += '  To: ' + to.toISOString().replace("T", " ").slice(0, 16) + '\n';
-    selectionText += '\n';
-    [...chartRepos].map(repoName => {
-        let [firstCommit, lastCommit] = getFirstAndLastCommitInRange(fromTimestamp, toTimestamp, repoName);
-        if (firstCommit) {
-            selectionText += 'First commit in ' + repoName + ':\n' + firstCommit.sha1.substring(0, 8) + " " + firstCommit.msg + '\n\n';
-            selectionText += 'Last commit in ' + repoName + ':\n' + lastCommit.sha1.substring(0, 8) + " " + lastCommit.msg + '\n\n';
-        } else {
-            selectionText += 'Selected period does not contain any commits in repo: ' + repoName + '\n\n';
+    document.querySelector("#selInactive").style.display = "none";
+    document.querySelector("#selActive").style.display = "block";
+
+    document.querySelector("#selLeftTime").innerText = from.toISOString().replace("T", " ").slice(0, 16);
+    document.querySelector("#selRightTime").innerText = to.toISOString().replace("T", " ").slice(0, 16);
+
+    const selDiffContainer = document.querySelector("#selDiffContainer");
+    selDiffContainer.innerHTML = '';
+    [...allSeries].forEach(series => {
+        const [firstDatapointInRange, lastDatapointInRange] = getFirstAndLastDatapointInRange(fromTimestamp, toTimestamp, series);
+        if (firstDatapointInRange) {
+            const diffAbsoluteValue = lastDatapointInRange.y - firstDatapointInRange.y;
+            let diffPrefix;
+            if (diffAbsoluteValue >= 0) {
+                diffPrefix = '+';
+            } else {
+                diffPrefix = '';
+            }
+            const diffPercentageValue = (100*lastDatapointInRange.y/firstDatapointInRange.y - 100).toFixed(2);
+            const diffPercentageStr = diffPrefix + diffPercentageValue;
+            const diffAbsoluteStr = diffPrefix + diffAbsoluteValue.toLocaleString();
+
+            const fromCommit = firstDatapointInRange.commit.sha1.substring(0, 8) + ": " + firstDatapointInRange.commit.msg;
+            const toCommit = lastDatapointInRange.commit.sha1.substring(0, 8) + ": " + lastDatapointInRange.commit.msg;
+
+            selDiffContainer.innerHTML += `
+                <div class="diffWrapper">
+                    <span class="colorbox" style="background: ${series.color}"></span>
+                    <div class="diffWrapperRight">
+                        <div>${series.name}</div>
+                        <div class="diffValue">${diffPercentageStr}% (${diffAbsoluteStr})</div>
+                        <div class="diffDetails">
+                            <div><span>From value: </span><span>${firstDatapointInRange.y}</span></div>
+                            <div><span>From commit: </span><span>${fromCommit}</span></div>
+                            <div>&nbsp;</div>
+                            <div><span>To value: </span><span>${lastDatapointInRange.y}</span></div>
+                            <div><span>To commit: </span><span>${toCommit}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            selDiffContainer.querySelectorAll(".diffWrapper").forEach((diffWrapper) => {
+                const diffDetails = diffWrapper.querySelector(".diffDetails");
+                diffDetails.style.display = "none";
+                diffWrapper.addEventListener("click", () => {
+                    diffDetails.style.display = diffDetails.style.display != "block" ? "block" : "none";
+                });
+            });
         }
     });
-    document.querySelector("#selectionInfo").innerText = selectionText;
 }
 chartElement.addEventListener("mousemove", (ev) => {
     const selEndX = ev.clientX;
@@ -406,7 +508,8 @@ slider.onSlide(() => {
 });
 function hideSelection() {
     selectionOutline.style.display = "none";
-    selectionInfo.innerText = "Nothing selected. Drag-select a part of the chart using the mouse to create a selection."
+    document.querySelector("#selInactive").style.display = "block";
+    document.querySelector("#selActive").style.display = "none";
 }
 hideSelection();
 </script>
