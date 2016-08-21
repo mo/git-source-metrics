@@ -1,7 +1,7 @@
 /* Example URL: http://a.com/hello.html?first=blah&second=yada&second=meh
- * Example URL params: get_url_params() == {"first" : "blah", "second" : ["yada", "meh"]}
+ * Example URL params: getUrlParams() == {"first" : "blah", "second" : ["yada", "meh"]}
  */
-function get_url_params()
+function getUrlParams()
 {
     const questionMarkIdx = window.location.href.indexOf('?');
     if (questionMarkIdx == -1) {
@@ -22,7 +22,7 @@ function get_url_params()
     return params;
 }
 
-function build_url_string_from_url_params(params) {
+function buildUrlStringFromUrlParams(params) {
     const new_url = Object.keys(params).sort().map((key) => {
         const val = params[key];
         if (val.push) {
@@ -35,8 +35,8 @@ function build_url_string_from_url_params(params) {
     return '?' + new_url;
 }
 
-function reload_with_new_url_params(params) {
-    window.location = build_url_string_from_url_params(params);
+function reloadWithNewUrlParams(params) {
+    window.location = buildUrlStringFromUrlParams(params);
 }
 
 function bytesToSize(bytes) {
