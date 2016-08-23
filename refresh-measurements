@@ -402,7 +402,10 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
             if len(measurements_needed_for_this_sha1) > 0:
                 todo_list.append((repo_name, sha1, commit_timestamp, measurements_needed_for_this_sha1))
 
-    random.shuffle(todo_list)
+    if args.measurement_order == "random":
+        random.shuffle(todo_list)
+    elif args.measurement_order == "linear-newest-first":
+        todo_list = list(reversed(todo_list))
 
     measurements_done = 0
     measurements_total = 0
@@ -627,6 +630,7 @@ if __name__ == '__main__':
         parser.add_argument("--ignore-commits-before", metavar="YYYY or YYYY-MM-DD")
         parser.add_argument("--include-all-measured-data", action="store_true")
         parser.add_argument("--refresh-selected-metrics-only", nargs="+", metavar="METRIC_NAME")
+        parser.add_argument("--measurement-order", default="random", choices=["random", "linear-oldest-first", "linear-newest-first"])
 
         # other commands
         parser.add_argument("--just-regenerate-jsdata", action="store_true")
