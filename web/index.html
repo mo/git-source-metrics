@@ -8,138 +8,31 @@
 <script src="thirdparty/jquery-ui/jquery-ui-1.11.2/external/jquery/jquery.js"></script>
 <script src="thirdparty/jquery-ui/jquery-ui-1.11.2/jquery-ui.min.js"></script>
 
+<script src="thirdparty/analysis-chart/analysis-chart.js"></script>
+<link rel="stylesheet" href="thirdparty/analysis-chart/analysis-chart.css">
+
 <script src="utilities.js"></script>
 <script src="../../all_chart_data.js"></script>
 
 <style>
-#chart_container {
-    position: relative;
-    display: inline-block;
-    font-family: Arial, Helvetica, sans-serif;
-    width: 1210px;
-}
-#chart {
-    display: inline-block;
-    margin-left: 100px;
-}
-#y_axis {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 100px;
-}
-#x_axis {
-    margin-left: 100px;
-}
-#range_slider {
-    margin-left: 100px;
-    height: 0.4em;
-}
-#range_slider .ui-slider-handle {
-    height: 0.8em;
-    width: 0.8em;
-}
-#annotation_timeline {
-    margin-left: 100px;
-    margin-bottom: 20px;
-}
-#legend {
-    min-width: 290px;
-}
 #chart_select {
     width: 1100px;
     margin-left: 100px;
 }
-#rightColumn {
-    display: inline-block;
-    vertical-align: top;
-    margin: 0 0 0 10px;
-}
-#optionsPanel {
-    padding: 0px 10px;
-    /* overflow:auto makes #optionsPanel DIV large enough to contain the float children. */
-    overflow: auto;
-}
-#optionsPanel input {
-    float: left;
-}
-#optionsPanel label {
-    float: left;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 11pt;
-    margin-top: 1px;
-}
-#optionsPanel label + input {
-    clear: left;
-}
-#legendHelpArrow {
-    font-size: 19pt;
-    color: gray;
-}
-#legendHelpText {
-    display: none;
-    width: 280px;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 8pt;
-}
-#legendHelpText span {
-    vertical-align: middle;
-}
-#scalingButtonsContainer {
-    margin-top: 20px;
-}
-#selActive, #selInactive {
-    width: 300px;
-    background: #F8F8F8;
-    padding: 10px;
-    margin-top: 20px;
-    font-family: arial;
-    font-size: 9pt;
-}
-#selActive tr td:first-child {
-    font-weight: bold;
-    padding-right: 10px;
-}
-#selGitLogContainer input {
-    width: calc(100% - 10px);
+.repo-diff {
     padding: 3px;
-    margin: 5px;
-    font-family: courier new;
 }
-#selDiffContainer {
+.repo-diff .label {
+    font-weight: bold;
+}
+.repo-diff .rowTo {
     margin-top: 10px;
 }
-#selActive .colorbox {
-    width: 12px;
-    height: 12px;
-    display: inline-block;
-    border-radius: 2px;
-}
-#selActive .diffWrapper {
-    margin-bottom: 10px;
-    overflow: hidden;
-}
-#selActive .diffWrapperRight {
-    width: calc(100% - 20px);
-    margin-left: 3px;
-}
-.diffValue {
-    background: #E8E8E8;
-    margin: 1px;
-    padding: 4px;
-    font-weight: bold;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    cursor: pointer;
-}
-#selActive .diffWrapper > * {
-    float: left;
-}
-.detail {
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
+.repo-diff input {
+    width: calc(100% - 10px);
+    padding: 3px;
+    font-family: courier new;
+    margin-top: 10px;
 }
 </style>
 
@@ -147,43 +40,7 @@
 </select>
 <br><br>
 
-<div id="chart_container">
-        <div id="y_axis"></div>
-        <div id="chart"></div>
-        <div id="x_axis"></div>
-        <div id="annotation_timeline"></div>
-        <div id="range_slider"></div>
-</div>
-<div id="rightColumn">
-    <div id="legend"></div>
-    <div id="optionsPanel">
-        <div id="legendHelpText">
-            <span id="legendHelpArrow">&#x2B11;</span> <span>too much clutter? uncheck to temporarily hide metrics</span>
-        </div>
-        <div id="scalingButtonsContainer">
-            <input type="radio" name="y-axis-scaling" id="btnFixedZero" />
-            <label for="btnFixedZero">Fixed Y-axis (fit to data, always include zero)</label>
-
-            <input type="radio" name="y-axis-scaling" id="btnFixed" />
-            <label for="btnFixed">Fixed Y-axis (fit to data, with padding)</label>
-
-            <input type="radio" name="y-axis-scaling" id="btnRescale" />
-            <label for="btnRescale">Rescale Y-axis to currently visible data</label>
-        </div>
-    </div>
-    <div>
-        <div id="selInactive">Nothing selected. Drag-select a part of the chart using the mouse to create a selection.</div>
-        <div id="selActive">
-            <table>
-            <tr><td>From:</td><td id="selLeftTime"></td></tr>
-            <tr><td>To:</td><td id="selRightTime"></td></tr>
-            </table>
-            <div id="selGitLogContainer"></div>
-            <div id="selDiffContainer"></div>
-        </div>
-    </div>
-
-</div>
+<div id="analysis-chart-container"></div>
 
 <script>
 const params = getUrlParams();
@@ -214,109 +71,15 @@ document.getElementById('chart_select').addEventListener("change", function () {
 const selectedCommitsMap = {};
 Object.keys(selected_commits).forEach(repo_name => selectedCommitsMap[repo_name] = new Map(selected_commits[repo_name]));
 const allSeries = all_chart_data[params["chart"]]["chart_series"];
-const chartRepos = new Set(allSeries.map(serie => serie.repo));
-const allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
-const allSeriesYMax = d3.max(allSeries, serie => d3.max(serie.data, datapoint => datapoint.y));
-const allSeriesYSpan = allSeriesYMax - allSeriesYMin;
-
-const graph = new Rickshaw.Graph( {
-        element: document.querySelector("#chart"),
-        width: 1100,
-        height: 500,
-        interpolation: "linear",
-        stack: false,
-        series: allSeries
-} );
-graph.setRenderer('line');
-graph.render();
-
-const distanceFurthestFromZero = Math.max(Math.abs(allSeriesYMin), Math.abs(allSeriesYMax));
-$("#btnFixedZero").click(function (e) {
-    params["y-axis-scaling"] = "FixedZero";
-    reloadWithNewUrlParams(params);
-});
-
-$("#btnFixed").click(function (e) {
-    params["y-axis-scaling"] = "Fixed";
-    reloadWithNewUrlParams(params);
-});
-
-$("#btnRescale").click(function (e) {
-    params["y-axis-scaling"] = "Rescale";
-    reloadWithNewUrlParams(params);
-});
-
-const allYAxisScalingMethods = ["FixedZero", "Fixed", "Rescale"];
-if (allYAxisScalingMethods.indexOf(params["y-axis-scaling"]) == -1) {
-    params["y-axis-scaling"] = "FixedZero";
-}
-$("#btn" + params["y-axis-scaling"]).attr("checked", "true");
-switch (params["y-axis-scaling"]) {
-    case "FixedZero":
-        graph.configure({
-            min: Math.min(allSeriesYMin, 0),
-            max: Math.max(allSeriesYMax + 0.1*distanceFurthestFromZero, 0),
-        });
-        graph.render();
-        break;
-    case "Fixed":
-        graph.configure({
-            min: allSeriesYMin - 0.1*allSeriesYSpan,
-            max: allSeriesYMax + 0.1*allSeriesYSpan,
-        });
-        graph.render();
-        break;
-    case "Rescale":
-        graph.configure({
-            min: "auto",
-            max: undefined,
-        });
-        graph.render();
-        break;
-}
-
-if (allSeries.length > 1) {
-    $('#legendHelpText').show();
-}
-
-function timestampToDateString(x) {
-    return (new Date(x*1000)).toISOString().substring(0, 10)
-}
 
 function timestampToDatetimeString(x) {
-    return (new Date(x*1000)).toISOString().replace("T", " ").substring(0, 16)
+    return (new Date(x * 1000)).toISOString().replace("T", " ").substring(0, 16);
 }
 
-var x_axis = new Rickshaw.Graph.Axis.X( {
-    graph: graph,
-    tickFormat: timestampToDateString,
-    orientation: "bottom",
-    pixelsPerTick: 120,
-    element: document.getElementById('x_axis'),
-} );
-x_axis.render();
-
-const y_axis = new Rickshaw.Graph.Axis.Y( {
-        graph: graph,
-        orientation: 'left',
-        tickFormat: (v) => v.toLocaleString(),
-        element: document.getElementById('y_axis'),
-} );
-y_axis.render();
-
-const legend = new Rickshaw.Graph.Legend( {
-        element: document.querySelector('#legend'),
-        graph: graph
-} );
-
-const shelving = new Rickshaw.Graph.Behavior.Series.Toggle({
-    graph: graph,
-    legend: legend
-});
-
-const hoverDetail = new Rickshaw.Graph.HoverDetail( {
-    graph: graph,
-    xFormatter: function(x) {
+const analysisChartContainer = document.querySelector('#analysis-chart-container');
+const chartRepos = new Set(allSeries.map(serie => serie.repo));
+const analysisChart = new AnalysisChart(analysisChartContainer, allSeries, {
+    xFormatter: (x) => {
         const commitDate = timestampToDatetimeString(x)
         const sha1s = [...chartRepos].map(repo_name => {
             const repo_commits = selectedCommitsMap[repo_name];
@@ -328,39 +91,8 @@ const hoverDetail = new Rickshaw.Graph.HoverDetail( {
             }
         }).filter(s => s != undefined).join(", ");
         return commitDate + " (" + sha1s + ")"
-    },
-    yFormatter: function(y) { return y.toLocaleString() }
-} );
-
-const slider = new Rickshaw.Graph.RangeSlider({
-    graph: graph,
-    element: document.querySelector('#range_slider')
+    }
 });
-
-const annotator = new Rickshaw.Graph.Annotate({
-    graph: graph,
-    element: document.querySelector('#annotation_timeline')
-});
-
-const annotations = all_chart_data[params["chart"]]["chart_annotations"]
-for (timestamp in annotations) {
-    annotator.add(timestamp, timestampToDateString(timestamp) + ": " + annotations[timestamp]);
-}
-annotator.update();
-
-const chartElement = document.querySelector("#chart");
-chartElement.style.position = "relative";
-const chartElementBoundingRect = chartElement.getBoundingClientRect();
-const selectionOutline = chartElement.appendChild(document.createElement("div"));
-selectionOutline.className += "selection-outline";
-selectionOutline.style.position = "absolute";
-selectionOutline.style.border = "1px dashed black";
-selectionOutline.style['pointer-events'] = "none";
-let isMouseDown = false;
-let selStartX;
-function getTimeAtChartXCoord(x) {
-    return new Date(1000*graph.x.invert(x - chartElementBoundingRect.left));
-}
 
 function getFirstAndLastCommitInRange(timestampFrom, timestampTo, repoName) {
     const repoCommits = selectedCommitsMap[repoName];
@@ -387,147 +119,24 @@ function getFirstAndLastCommitInRange(timestampFrom, timestampTo, repoName) {
     return [firstCommit, lastCommit];
 }
 
-function getFirstAndLastDatapointInRange(timestampFrom, timestampTo, series) {
-    let firstDatapointInRange = undefined;
-    let lastDatapointInRange = undefined;
-    for (var datapoint of series.data) {
-        const x = datapoint.x;
-        const y = datapoint.y;
-        if (timestampFrom < x && x < timestampTo) {
-            if (!firstDatapointInRange || x - timestampFrom < firstDatapointInRange.x - timestampFrom) {
-                firstDatapointInRange = datapoint;
-            }
-            if (!lastDatapointInRange || timestampTo - x < timestampTo - lastDatapointInRange.x) {
-                lastDatapointInRange = datapoint;
-            }
-        }
-    }
-    if (firstDatapointInRange) {
-        const repoCommits = selectedCommitsMap[series.repo];
-        firstDatapointInRange.commit = repoCommits.get(firstDatapointInRange.x)[0];
-        lastDatapointInRange.commit = repoCommits.get(lastDatapointInRange.x).slice(-1)[0];
-    }
-    return [firstDatapointInRange, lastDatapointInRange];
-}
-
-chartElement.addEventListener("mousedown", (ev) => {
-    selStartX = ev.clientX;
-    selectionOutline.style.left = ev.clientX - chartElementBoundingRect.left;
-    selectionOutline.style.top = 0;
-    selectionOutline.style.width = 0;
-    selectionOutline.style.height = chartElement.clientHeight - 2;
-    isMouseDown = true;
-    // Selection should remain hidden until cursor has moved at least 10 px.
-    hideSelection();
-    chartElement.querySelector(".detail").style.display = "none";
-    ev.preventDefault();
-});
-function updateSelectionInfo(selStartX, selEndX) {
-    const selLeft = Math.min(selStartX, selEndX);
-    const selRight = Math.max(selStartX, selEndX);
-    const from = getTimeAtChartXCoord(selLeft);
-    const fromTimestamp = graph.x.invert(selLeft - chartElementBoundingRect.left);
-    const to = getTimeAtChartXCoord(selRight);
-    const toTimestamp = graph.x.invert(selRight - chartElementBoundingRect.left);
-    document.querySelector("#selInactive").style.display = "none";
-    document.querySelector("#selActive").style.display = "block";
-
-    document.querySelector("#selLeftTime").innerText = from.toISOString().replace("T", " ").slice(0, 16);
-    document.querySelector("#selRightTime").innerText = to.toISOString().replace("T", " ").slice(0, 16);
-
-    const selGitLogContainer = document.querySelector("#selGitLogContainer");
-    selGitLogContainer.innerHTML = '';
+analysisChart.onRangeSelected((fromTimestamp, toTimestamp) => {
+    const selExtraInfo = document.querySelector("#selExtraInfo");
+    selExtraInfo.innerHTML = '';
     [...chartRepos].forEach(repoName => {
         const [firstCommit, lastCommit] = getFirstAndLastCommitInRange(fromTimestamp, toTimestamp, repoName);
         if (firstCommit) {
-            const fromCommit = firstCommit.sha1.substring(0, 8);
-            const toCommit = lastCommit.sha1.substring(0, 8);
-            selGitLogContainer.innerHTML += `<input type="text" value="git log ${fromCommit}..${toCommit}">`;
+            const fromSHA1 = firstCommit.sha1.substring(0, 8);
+            const fromMsg = firstCommit.msg;
+            const toSHA1 = lastCommit.sha1.substring(0, 8);
+            const toMsg = lastCommit.msg;
+            selExtraInfo.innerHTML += `
+                <div class="repo-diff">
+                    <div class="rowFrom"><span class="label">FROM: </span><span>${fromSHA1}: ${fromMsg}</span></div>
+                    <div class="rowto"><span class="label">TO: </span><span>${toSHA1}: ${toMsg}</span></div>
+                    <input type="text" value="git log ${fromSHA1}..${toSHA1}">
+                </div>
+            `;
         }
     });
-
-    const selDiffContainer = document.querySelector("#selDiffContainer");
-    selDiffContainer.innerHTML = '';
-    [...allSeries].forEach(series => {
-        const [firstDatapointInRange, lastDatapointInRange] = getFirstAndLastDatapointInRange(fromTimestamp, toTimestamp, series);
-        if (firstDatapointInRange) {
-            const diffAbsoluteValue = lastDatapointInRange.y - firstDatapointInRange.y;
-            let diffPrefix;
-            if (diffAbsoluteValue >= 0) {
-                diffPrefix = '+';
-            } else {
-                diffPrefix = '';
-            }
-            const diffPercentageValue = (100*lastDatapointInRange.y/firstDatapointInRange.y - 100).toFixed(2);
-            const diffPercentageStr = diffPrefix + diffPercentageValue;
-            const diffAbsoluteStr = diffPrefix + diffAbsoluteValue.toLocaleString();
-
-            const fromCommit = firstDatapointInRange.commit.sha1.substring(0, 8) + ": " + firstDatapointInRange.commit.msg;
-            const toCommit = lastDatapointInRange.commit.sha1.substring(0, 8) + ": " + lastDatapointInRange.commit.msg;
-
-            selDiffContainer.innerHTML += `
-                <div class="diffWrapper">
-                    <span class="colorbox" style="background: ${series.color}"></span>
-                    <div class="diffWrapperRight">
-                        <div>${series.name}</div>
-                        <div class="diffValue">${diffPercentageStr}% (${diffAbsoluteStr})</div>
-                        <div class="diffDetails">
-                            <div><span>From value: </span><span>${firstDatapointInRange.y}</span></div>
-                            <div><span>From commit: </span><span>${fromCommit}</span></div>
-                            <div>&nbsp;</div>
-                            <div><span>To value: </span><span>${lastDatapointInRange.y}</span></div>
-                            <div><span>To commit: </span><span>${toCommit}</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            selDiffContainer.querySelectorAll(".diffWrapper").forEach((diffWrapper) => {
-                const diffDetails = diffWrapper.querySelector(".diffDetails");
-                diffDetails.style.display = "none";
-                diffWrapper.addEventListener("click", () => {
-                    diffDetails.style.display = diffDetails.style.display != "block" ? "block" : "none";
-                });
-            });
-        }
-    });
-}
-chartElement.addEventListener("mousemove", (ev) => {
-    const selEndX = ev.clientX;
-    if (isMouseDown) {
-        const selectionWidth = Math.abs(selEndX - selStartX);
-        selectionOutline.style.left = Math.min(selStartX, selEndX) - chartElementBoundingRect.left;
-        selectionOutline.style.width = selectionWidth;
-
-        updateSelectionInfo(selStartX, selEndX);
-
-        if (selectionWidth > 10) {
-            selectionOutline.style.display = "block";
-        }
-    }
 });
-chartElement.addEventListener("mouseup", (ev) => {
-    if (isMouseDown) {
-        isMouseDown = false;
-        const selEndX = ev.clientX;
-        const selectionWidth = Math.abs(selEndX - selStartX);
-        chartElement.querySelector(".detail").style.display = "block";
-        if (selectionWidth < 10) {
-            // Classify this "drag" as a "click" instead and remove selection
-            hideSelection();
-        }
-    }
-});
-chartElement.addEventListener("mouseleave", (ev) => {
-    if (isMouseDown) {
-        isMouseDown = false;
-    }
-});
-slider.onSlide(() => {
-    hideSelection();
-});
-function hideSelection() {
-    selectionOutline.style.display = "none";
-    document.querySelector("#selInactive").style.display = "block";
-    document.querySelector("#selActive").style.display = "none";
-}
-hideSelection();
 </script>

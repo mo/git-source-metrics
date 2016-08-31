@@ -1,0 +1,119 @@
+#chart_container {
+    position: relative;
+    display: inline-block;
+    font-family: Arial, Helvetica, sans-serif;
+    width: 1210px;
+}
+#chart {
+    display: inline-block;
+    margin-left: 100px;
+}
+#y_axis {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100px;
+}
+#x_axis {
+    margin-left: 100px;
+}
+#range_slider {
+    margin-left: 100px;
+    height: 0.4em;
+}
+#range_slider .ui-slider-handle {
+    height: 0.8em;
+    width: 0.8em;
+}
+#annotation_timeline {
+    margin-left: 100px;
+    margin-bottom: 20px;
+}
+#legend {
+    min-width: 290px;
+}
+#rightColumn {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0 0 0 10px;
+}
+#optionsPanel {
+    padding: 0px 10px;
+    /* overflow:auto makes #optionsPanel DIV large enough to contain the float children. */
+    overflow: auto;
+}
+#optionsPanel input {
+    float: left;
+}
+#optionsPanel label {
+    float: left;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    margin-top: 1px;
+}
+#optionsPanel label + input {
+    clear: left;
+}
+#legendHelpArrow {
+    font-size: 19pt;
+    color: gray;
+}
+#legendHelpText {
+    display: none;
+    width: 280px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8pt;
+}
+#legendHelpText span {
+    vertical-align: middle;
+}
+#scalingButtonsContainer {
+    margin-top: 20px;
+}
+#selActive, #selInactive {
+    width: 300px;
+    background: #F8F8F8;
+    padding: 10px;
+    margin-top: 20px;
+    font-family: arial;
+    font-size: 9pt;
+}
+#selActive tr td:first-child {
+    font-weight: bold;
+    padding-right: 10px;
+}
+#selDiffContainer {
+    margin-top: 10px;
+}
+#selActive .colorbox {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    border-radius: 2px;
+}
+#selActive .diffWrapper {
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+#selActive .diffWrapperRight {
+    width: calc(100% - 20px);
+    margin-left: 3px;
+}
+.diffValue {
+    background: #E8E8E8;
+    margin: 1px;
+    padding: 4px;
+    font-weight: bold;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    cursor: pointer;
+}
+#selActive .diffWrapper > * {
+    float: left;
+}
+.detail {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+}
