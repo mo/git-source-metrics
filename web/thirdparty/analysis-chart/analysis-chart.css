@@ -1,76 +1,74 @@
-#chart_container {
+.main-column {
     position: relative;
     display: inline-block;
     font-family: Arial, Helvetica, sans-serif;
     width: 1210px;
 }
-#chart {
+.chart-draw-area {
     display: inline-block;
     margin-left: 100px;
 }
-#y_axis {
+.y-axis {
     position: absolute;
     top: 0;
     bottom: 0;
     width: 100px;
 }
-#x_axis {
+.x-axis {
     margin-left: 100px;
 }
-#range_slider {
+.range-slider {
     margin-left: 100px;
     height: 0.4em;
 }
-#range_slider .ui-slider-handle {
+.range-slider .ui-slider-handle {
     height: 0.8em;
     width: 0.8em;
 }
-#annotation_timeline {
+.annotation-timeline {
     margin-left: 100px;
     margin-bottom: 20px;
 }
-#legend {
+.legend {
     min-width: 290px;
 }
-#rightColumn {
+.right-column {
     display: inline-block;
     vertical-align: top;
     margin: 0 0 0 10px;
 }
-#optionsPanel {
+.options-panel {
     padding: 0px 10px;
-    /* overflow:auto makes #optionsPanel DIV large enough to contain the float children. */
+    /* overflow:auto makes .options-panel DIV large enough to contain the float children. */
     overflow: auto;
 }
-#optionsPanel input {
+.options-panel input {
     float: left;
 }
-#optionsPanel label {
+.options-panel label {
     float: left;
+    clear: left;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 11pt;
     margin-top: 1px;
 }
-#optionsPanel label + input {
-    clear: left;
-}
-#legendHelpArrow {
+.arrow {
     font-size: 19pt;
     color: gray;
 }
-#legendHelpText {
+.legend-help-text {
     display: none;
     width: 280px;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 8pt;
 }
-#legendHelpText span {
+.legend-help-text span {
     vertical-align: middle;
 }
-#scalingButtonsContainer {
+.scaling-buttons-container {
     margin-top: 20px;
 }
-#selActive, #selInactive {
+.selection-active, .selection-inactive {
     width: 300px;
     background: #F8F8F8;
     padding: 10px;
@@ -78,28 +76,28 @@
     font-family: arial;
     font-size: 9pt;
 }
-#selActive tr td:first-child {
+.selection-active tr td:first-child {
     font-weight: bold;
     padding-right: 10px;
 }
-#selDiffContainer {
+.selection-diff-container {
     margin-top: 10px;
 }
-#selActive .colorbox {
+.selection-active .colorbox {
     width: 12px;
     height: 12px;
     display: inline-block;
     border-radius: 2px;
 }
-#selActive .diffWrapper {
+.selection-active .diff-wrapper-outer {
     margin-bottom: 10px;
     overflow: hidden;
 }
-#selActive .diffWrapperRight {
+.selection-active .diff-wrapper-inner {
     width: calc(100% - 20px);
     margin-left: 3px;
 }
-.diffValue {
+.diff-value {
     background: #E8E8E8;
     margin: 1px;
     padding: 4px;
@@ -109,7 +107,7 @@
     -moz-user-select: none;
     cursor: pointer;
 }
-#selActive .diffWrapper > * {
+.selection-active .diff-wrapper-outer > * {
     float: left;
 }
 .detail {

@@ -120,7 +120,7 @@ function getFirstAndLastCommitInRange(timestampFrom, timestampTo, repoName) {
 }
 
 analysisChart.onRangeSelected((fromTimestamp, toTimestamp) => {
-    const selExtraInfo = document.querySelector("#selExtraInfo");
+    const selExtraInfo = analysisChartContainer.querySelector(".selection-extra-info");
     selExtraInfo.innerHTML = '';
     [...chartRepos].forEach(repoName => {
         const [firstCommit, lastCommit] = getFirstAndLastCommitInRange(fromTimestamp, toTimestamp, repoName);
