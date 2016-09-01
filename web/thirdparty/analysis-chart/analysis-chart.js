@@ -57,17 +57,17 @@ class AnalysisChart {
         graph.render();
 
         const distanceFurthestFromZero = Math.max(Math.abs(allSeriesYMin), Math.abs(allSeriesYMax));
-        $("#btnFixedZero").click(function (e) {
+        document.querySelector('#btnFixedZero').addEventListener('click', (ev) => {
             params["y-axis-scaling"] = "FixedZero";
             reloadWithNewUrlParams(params);
         });
 
-        $("#btnFixed").click(function (e) {
+        document.querySelector('#btnFixed').addEventListener('click', (ev) => {
             params["y-axis-scaling"] = "Fixed";
             reloadWithNewUrlParams(params);
         });
 
-        $("#btnRescale").click(function (e) {
+        document.querySelector('#btnRescale').addEventListener('click', (ev) => {
             params["y-axis-scaling"] = "Rescale";
             reloadWithNewUrlParams(params);
         });
@@ -76,7 +76,7 @@ class AnalysisChart {
         if (allYAxisScalingMethods.indexOf(params["y-axis-scaling"]) == -1) {
             params["y-axis-scaling"] = "FixedZero";
         }
-        $("#btn" + params["y-axis-scaling"]).attr("checked", "true");
+        document.querySelector('#btn' + params['y-axis-scaling']).checked = true;
         switch (params["y-axis-scaling"]) {
             case "FixedZero":
                 graph.configure({
