@@ -43,100 +43,114 @@
 <div id="analysis-chart-container"></div>
 
 <script>
-const params = getUrlParams();
-if (!(params["chart"] in all_chart_data) && Object.keys(all_chart_data).length > 0) {
-    params["chart"] = Object.keys(all_chart_data)[0];
-}
+(() => {
 
-const chartKeysSortedByTitle = Object.keys(all_chart_data).sort(function(key1, key2) {
-    const title1 = all_chart_data[key1]["chart_title"];
-    const title2 = all_chart_data[key2]["chart_title"];
-    return title1.localeCompare(title2);
-});
-
-for (let idx = 0; idx < chartKeysSortedByTitle.length; idx++) {
-    key = chartKeysSortedByTitle[idx];
-    const option = document.createElement("option");
-    option.innerHTML = all_chart_data[key]["chart_title"];
-    option.value = key;
-    document.getElementById("chart_select").appendChild(option);
-}
-document.getElementById('chart_select').value = params["chart"]
-document.getElementById('chart_select').focus()
-document.getElementById('chart_select').addEventListener("change", function () {
-    params["chart"] = this.value;
-    reloadWithNewUrlParams(params);
-});
-
-const selectedCommitsMap = {};
-Object.keys(selected_commits).forEach(repo_name => selectedCommitsMap[repo_name] = new Map(selected_commits[repo_name]));
-const allSeries = all_chart_data[params["chart"]]["chart_series"];
-
-function timestampToDatetimeString(x) {
-    return (new Date(x * 1000)).toISOString().replace("T", " ").substring(0, 16);
-}
-
-const analysisChartContainer = document.querySelector('#analysis-chart-container');
-const chartRepos = new Set(allSeries.map(serie => serie.repo));
-const analysisChart = new AnalysisChart(analysisChartContainer, allSeries, {
-    xFormatter: (x) => {
-        const commitDate = timestampToDatetimeString(x)
-        const sha1s = [...chartRepos].map(repo_name => {
-            const repo_commits = selectedCommitsMap[repo_name];
-            const timestampCommitList = repo_commits.get(x);
-            if (timestampCommitList) {
-                return timestampCommitList.map(commit => commit.sha1.substring(0, 8) + " in " + repo_name + ": " + commit.msg).join(", ");
-            } else {
-                return undefined;
-            }
-        }).filter(s => s != undefined).join(", ");
-        return commitDate + " (" + sha1s + ")"
+    const params = getUrlParams();
+    if (!(params["chart"] in all_chart_data) && Object.keys(all_chart_data).length > 0) {
+        params["chart"] = Object.keys(all_chart_data)[0];
     }
-});
 
-function getFirstAndLastCommitInRange(timestampFrom, timestampTo, repoName) {
-    const repoCommits = selectedCommitsMap[repoName];
-    let firstTimestampInRange = undefined;
-    let lastTimestampInRange = undefined;
-    for (var [timestamp, commit] of repoCommits.entries()) {
-        if (timestampFrom < timestamp && timestamp < timestampTo) {
-            if (!firstTimestampInRange || timestamp - timestampFrom < firstTimestampInRange - timestampFrom) {
-                firstTimestampInRange = timestamp;
-            }
-            if (!lastTimestampInRange || timestampTo - timestamp < timestampTo - lastTimestampInRange) {
-                lastTimestampInRange = timestamp;
-            }
-        }
-    }
-    let firstCommit = undefined;
-    let lastCommit = undefined;
-    if (firstTimestampInRange) {
-        // If there was at least one timestamp in the range, then we'll have
-        // both a firstTimestampInRange and a lastTimestampInRange.
-        firstCommit = repoCommits.get(firstTimestampInRange)[0];
-        lastCommit = repoCommits.get(lastTimestampInRange).slice(-1)[0];
-    }
-    return [firstCommit, lastCommit];
-}
+    const chartKeysSortedByTitle = Object.keys(all_chart_data).sort(function(key1, key2) {
+        const title1 = all_chart_data[key1]["chart_title"];
+        const title2 = all_chart_data[key2]["chart_title"];
+        return title1.localeCompare(title2);
+    });
 
-analysisChart.onRangeSelected((fromTimestamp, toTimestamp) => {
-    const selExtraInfo = analysisChartContainer.querySelector(".selection-extra-info");
-    selExtraInfo.innerHTML = '';
-    [...chartRepos].forEach(repoName => {
-        const [firstCommit, lastCommit] = getFirstAndLastCommitInRange(fromTimestamp, toTimestamp, repoName);
-        if (firstCommit) {
-            const fromSHA1 = firstCommit.sha1.substring(0, 8);
-            const fromMsg = firstCommit.msg;
-            const toSHA1 = lastCommit.sha1.substring(0, 8);
-            const toMsg = lastCommit.msg;
-            selExtraInfo.innerHTML += `
-                <div class="repo-diff">
-                    <div class="rowFrom"><span class="label">FROM: </span><span>${fromSHA1}: ${fromMsg}</span></div>
-                    <div class="rowto"><span class="label">TO: </span><span>${toSHA1}: ${toMsg}</span></div>
-                    <input type="text" value="git log ${fromSHA1}..${toSHA1}">
-                </div>
-            `;
+    for (let idx = 0; idx < chartKeysSortedByTitle.length; idx++) {
+        key = chartKeysSortedByTitle[idx];
+        const option = document.createElement("option");
+        option.innerHTML = all_chart_data[key]["chart_title"];
+        option.value = key;
+        document.getElementById("chart_select").appendChild(option);
+    }
+    document.getElementById('chart_select').value = params["chart"]
+    document.getElementById('chart_select').focus()
+    document.getElementById('chart_select').addEventListener("change", function () {
+        params["chart"] = this.value;
+        reloadWithNewUrlParams(params);
+    });
+
+    const selectedCommitsMap = {};
+    Object.keys(selected_commits).forEach(repo_name => selectedCommitsMap[repo_name] = new Map(selected_commits[repo_name]));
+    const selectedChart = all_chart_data[params["chart"]];
+    const allSeries = selectedChart["chart_series"];
+
+    function timestampToDatetimeString(x) {
+        return (new Date(x * 1000)).toISOString().replace("T", " ").substring(0, 16);
+    }
+
+    const analysisChartContainer = document.querySelector('#analysis-chart-container');
+    const chartRepos = new Set(allSeries.map(serie => serie.repo));
+    const analysisChart = new AnalysisChart({
+        element: analysisChartContainer,
+        series: allSeries,
+        annotations: selectedChart["chart_annotations"],
+        yAxisScalingMode: params["y-axis-scaling"],
+        xFormatter: (x) => {
+            const commitDate = timestampToDatetimeString(x)
+            const sha1s = [...chartRepos].map(repo_name => {
+                const repo_commits = selectedCommitsMap[repo_name];
+                const timestampCommitList = repo_commits.get(x);
+                if (timestampCommitList) {
+                    return timestampCommitList.map(commit => commit.sha1.substring(0, 8) + " in " + repo_name + ": " + commit.msg).join(", ");
+                } else {
+                    return undefined;
+                }
+            }).filter(s => s != undefined).join(", ");
+            return commitDate + " (" + sha1s + ")"
         }
     });
-});
+
+    function getFirstAndLastCommitInRange(timestampFrom, timestampTo, repoName) {
+        const repoCommits = selectedCommitsMap[repoName];
+        let firstTimestampInRange = undefined;
+        let lastTimestampInRange = undefined;
+        for (var [timestamp, commit] of repoCommits.entries()) {
+            if (timestampFrom < timestamp && timestamp < timestampTo) {
+                if (!firstTimestampInRange || timestamp - timestampFrom < firstTimestampInRange - timestampFrom) {
+                    firstTimestampInRange = timestamp;
+                }
+                if (!lastTimestampInRange || timestampTo - timestamp < timestampTo - lastTimestampInRange) {
+                    lastTimestampInRange = timestamp;
+                }
+            }
+        }
+        let firstCommit = undefined;
+        let lastCommit = undefined;
+        if (firstTimestampInRange) {
+            // If there was at least one timestamp in the range, then we'll have
+            // both a firstTimestampInRange and a lastTimestampInRange.
+            firstCommit = repoCommits.get(firstTimestampInRange)[0];
+            lastCommit = repoCommits.get(lastTimestampInRange).slice(-1)[0];
+        }
+        return [firstCommit, lastCommit];
+    }
+
+    analysisChart.onRangeSelected((fromTimestamp, toTimestamp) => {
+        const selExtraInfo = analysisChartContainer.querySelector(".selection-extra-info");
+        selExtraInfo.innerHTML = '';
+        [...chartRepos].forEach(repoName => {
+            const [firstCommit, lastCommit] = getFirstAndLastCommitInRange(fromTimestamp, toTimestamp, repoName);
+            if (firstCommit) {
+                const fromSHA1 = firstCommit.sha1.substring(0, 8);
+                const fromMsg = firstCommit.msg;
+                const toSHA1 = lastCommit.sha1.substring(0, 8);
+                const toMsg = lastCommit.msg;
+                selExtraInfo.innerHTML += `
+                    <div class="repo-diff">
+                        <div class="rowFrom"><span class="label">FROM: </span><span>${fromSHA1}: ${fromMsg}</span></div>
+                        <div class="rowto"><span class="label">TO: </span><span>${toSHA1}: ${toMsg}</span></div>
+                        <input type="text" value="git log ${fromSHA1}..${toSHA1}">
+                    </div>
+                `;
+            }
+        });
+    });
+
+    analysisChart.onYAxisScalingChanged((newScalingMode) => {
+        params["y-axis-scaling"] = newScalingMode;
+        reloadWithNewUrlParams(params);
+    });
+
+})();
 </script>

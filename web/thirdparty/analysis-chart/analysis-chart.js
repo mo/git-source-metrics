@@ -1,8 +1,14 @@
 class AnalysisChart {
-    constructor(rootElement, data, opts) {
-        this.onRangeSelectedCallbacks = [];
+    constructor(args) {
+        const allYAxisScalingMethods = ["fixed-zero", "fixed", "rescale"];
+        if (allYAxisScalingMethods.indexOf(args.yAxisScalingMode) == -1) {
+            args.yAxisScalingMode = "fixed-zero";
+        }
 
-        this.rootElement = rootElement;
+        this.onRangeSelectedCallbacks = [];
+        this.onYAxisScalingChangedCallbacks = [];
+
+        this.rootElement = args.element;
         this.rootElement.innerHTML = `
             <div class="main-column">
                     <div class="y-axis"></div>
@@ -46,68 +52,41 @@ class AnalysisChart {
 
             </div>`;
 
-        const allSeriesYMin = d3.min(allSeries, serie => d3.min(serie.data, datapoint => datapoint.y));
-        const allSeriesYMax = d3.max(allSeries, serie => d3.max(serie.data, datapoint => datapoint.y));
-        const allSeriesYSpan = allSeriesYMax - allSeriesYMin;
+        this.series = args.series;
+        this.allSeriesYMin = d3.min(args.series, serie => d3.min(serie.data, datapoint => datapoint.y));
+        this.allSeriesYMax = d3.max(args.series, serie => d3.max(serie.data, datapoint => datapoint.y));
+        this.allSeriesYSpan = this.allSeriesYMax - this.allSeriesYMin;
+        this.distanceFurthestFromZero = Math.max(Math.abs(this.allSeriesYMin), Math.abs(this.allSeriesYMax));
 
         const graph = this.graph = new Rickshaw.Graph( {
-                element: rootElement.querySelector(".chart-draw-area"),
+                element: this.rootElement.querySelector(".chart-draw-area"),
                 width: 1100,
                 height: 500,
                 interpolation: "linear",
                 stack: false,
-                series: allSeries
+                series: args.series
         } );
         graph.setRenderer('line');
         graph.render();
 
-        const distanceFurthestFromZero = Math.max(Math.abs(allSeriesYMin), Math.abs(allSeriesYMax));
-        rootElement.querySelector('.btn-fixed-zero').addEventListener('click', (ev) => {
-            params["y-axis-scaling"] = "fixed-zero";
-            reloadWithNewUrlParams(params);
+        this.rootElement.querySelector('.btn-fixed-zero').addEventListener('click', (ev) => {
+            this.setYAxisScaling("fixed-zero");
         });
 
-        rootElement.querySelector('.btn-fixed').addEventListener('click', (ev) => {
-            params["y-axis-scaling"] = "fixed";
-            reloadWithNewUrlParams(params);
+
+        this.rootElement.querySelector('.btn-fixed').addEventListener('click', (ev) => {
+            this.setYAxisScaling("fixed");
         });
 
-        rootElement.querySelector('.btn-rescale').addEventListener('click', (ev) => {
-            params["y-axis-scaling"] = "rescale";
-            reloadWithNewUrlParams(params);
+        this.rootElement.querySelector('.btn-rescale').addEventListener('click', (ev) => {
+            this.setYAxisScaling("rescale");
         });
 
-        const allYAxisScalingMethods = ["fixed-zero", "fixed", "rescale"];
-        if (allYAxisScalingMethods.indexOf(params["y-axis-scaling"]) == -1) {
-            params["y-axis-scaling"] = "fixed-zero";
-        }
-        rootElement.querySelector('.btn-' + params['y-axis-scaling']).checked = true;
-        switch (params["y-axis-scaling"]) {
-            case "fixed-zero":
-                graph.configure({
-                    min: Math.min(allSeriesYMin, 0),
-                    max: Math.max(allSeriesYMax + 0.1*distanceFurthestFromZero, 0),
-                });
-                graph.render();
-                break;
-            case "fixed":
-                graph.configure({
-                    min: allSeriesYMin - 0.1*allSeriesYSpan,
-                    max: allSeriesYMax + 0.1*allSeriesYSpan,
-                });
-                graph.render();
-                break;
-            case "rescale":
-                graph.configure({
-                    min: "auto",
-                    max: undefined,
-                });
-                graph.render();
-                break;
-        }
+        this.rootElement.querySelector('.btn-' + args.yAxisScalingMode).checked = true;
+        this.setYAxisScaling(args.yAxisScalingMode);
 
-        if (allSeries.length > 1) {
-            rootElement.querySelector('.legend-help-text').style.display = "block";
+        if (args.series.length > 1) {
+            this.rootElement.querySelector('.legend-help-text').style.display = "block";
         }
 
         function timestampToDateString(x) {
@@ -119,7 +98,7 @@ class AnalysisChart {
             tickFormat: timestampToDateString,
             orientation: "bottom",
             pixelsPerTick: 120,
-            element: rootElement.querySelector('.x-axis'),
+            element: this.rootElement.querySelector('.x-axis'),
         });
         xAxis.render();
 
@@ -127,12 +106,12 @@ class AnalysisChart {
             graph: graph,
             orientation: 'left',
             tickFormat: (v) => v.toLocaleString(),
-            element: rootElement.querySelector('.y-axis'),
+            element: this.rootElement.querySelector('.y-axis'),
         });
         yAxis.render();
 
         const legend = new Rickshaw.Graph.Legend({
-            element: rootElement.querySelector('.legend'),
+            element: this.rootElement.querySelector('.legend'),
             graph: graph
         });
 
@@ -143,46 +122,45 @@ class AnalysisChart {
 
         const hoverDetail = new Rickshaw.Graph.HoverDetail({
             graph: graph,
-            xFormatter: opts.xFormatter,
+            xFormatter: args.xFormatter,
             yFormatter: function(y) { return y.toLocaleString() }
         });
 
         const rangeSlider = new Rickshaw.Graph.RangeSlider({
             graph: graph,
-            element: rootElement.querySelector('.range-slider')
+            element: this.rootElement.querySelector('.range-slider')
         });
 
         const annotator = new Rickshaw.Graph.Annotate({
             graph: graph,
-            element: rootElement.querySelector('.annotation-timeline')
+            element: this.rootElement.querySelector('.annotation-timeline')
         });
 
-        const annotations = all_chart_data[params["chart"]]["chart_annotations"]
-        for (let timestamp in annotations) {
-            annotator.add(timestamp, timestampToDateString(timestamp) + ": " + annotations[timestamp]);
+        for (let timestamp in args.annotations) {
+            annotator.add(timestamp, timestampToDateString(timestamp) + ": " + args.annotations[timestamp]);
         }
         annotator.update();
 
-        const chartDrawArea = rootElement.querySelector(".chart-draw-area");
+        const chartDrawArea = this.rootElement.querySelector(".chart-draw-area");
         chartDrawArea.style.position = "relative";
         const drawAreaBoundingRect = this.drawAreaBoundingRect = chartDrawArea.getBoundingClientRect();
-        const selectionOutline = chartDrawArea.appendChild(document.createElement("div"));
-        selectionOutline.className += "selection-outline";
-        selectionOutline.style.position = "absolute";
-        selectionOutline.style.border = "1px dashed black";
-        selectionOutline.style['pointer-events'] = "none";
+        this.selectionOutline = chartDrawArea.appendChild(document.createElement("div"));
+        this.selectionOutline.className += "selection-outline";
+        this.selectionOutline.style.position = "absolute";
+        this.selectionOutline.style.border = "1px dashed black";
+        this.selectionOutline.style['pointer-events'] = "none";
         let isMouseDown = false;
         let selStartX;
 
         chartDrawArea.addEventListener("mousedown", (ev) => {
             selStartX = ev.clientX;
-            selectionOutline.style.left = ev.clientX - drawAreaBoundingRect.left;
-            selectionOutline.style.top = 0;
-            selectionOutline.style.width = 0;
-            selectionOutline.style.height = chartDrawArea.clientHeight - 2;
+            this.selectionOutline.style.left = ev.clientX - drawAreaBoundingRect.left;
+            this.selectionOutline.style.top = 0;
+            this.selectionOutline.style.width = 0;
+            this.selectionOutline.style.height = chartDrawArea.clientHeight - 2;
             isMouseDown = true;
             // Selection should remain hidden until cursor has moved at least 10 px.
-            hideSelection();
+            this.hideSelection();
             chartDrawArea.querySelector(".detail").style.display = "none";
             ev.preventDefault();
         });
@@ -190,13 +168,13 @@ class AnalysisChart {
             const selEndX = ev.clientX;
             if (isMouseDown) {
                 const selectionWidth = Math.abs(selEndX - selStartX);
-                selectionOutline.style.left = Math.min(selStartX, selEndX) - drawAreaBoundingRect.left;
-                selectionOutline.style.width = selectionWidth;
+                this.selectionOutline.style.left = Math.min(selStartX, selEndX) - drawAreaBoundingRect.left;
+                this.selectionOutline.style.width = selectionWidth;
 
                 this.updateSelectionInfo(selStartX, selEndX);
 
                 if (selectionWidth > 10) {
-                    selectionOutline.style.display = "block";
+                    this.selectionOutline.style.display = "block";
                 }
             }
         });
@@ -208,7 +186,7 @@ class AnalysisChart {
                 chartDrawArea.querySelector(".detail").style.display = "block";
                 if (selectionWidth < 10) {
                     // Classify this "drag" as a "click" instead and remove selection
-                    hideSelection();
+                    this.hideSelection();
                 }
             }
         });
@@ -218,14 +196,48 @@ class AnalysisChart {
             }
         });
         rangeSlider.onSlide(() => {
-            hideSelection();
+            this.hideSelection();
         });
-        function hideSelection() {
-            selectionOutline.style.display = "none";
-            rootElement.querySelector(".selection-inactive").style.display = "block";
-            rootElement.querySelector(".selection-active").style.display = "none";
+        this.hideSelection();
+    }
+
+    setYAxisScaling(mode) {
+        switch (mode) {
+            case "fixed-zero":
+                this.graph.configure({
+                    min: Math.min(this.allSeriesYMin, 0),
+                    max: Math.max(this.allSeriesYMax + 0.1 * this.distanceFurthestFromZero, 0),
+                });
+                this.graph.render();
+                break;
+            case "fixed":
+                this.graph.configure({
+                    min: this.allSeriesYMin - 0.1 * this.allSeriesYSpan,
+                    max: this.allSeriesYMax + 0.1 * this.allSeriesYSpan,
+                });
+                this.graph.render();
+                break;
+            case "rescale":
+                this.graph.configure({
+                    min: "auto",
+                    max: undefined,
+                });
+                this.graph.render();
+                break;
         }
-        hideSelection();
+        this.onYAxisScalingChangedCallbacks.forEach((callback) => {
+            callback(mode);
+        });
+    }
+
+    onYAxisScalingChanged(callback) {
+        this.onYAxisScalingChangedCallbacks.push(callback);
+    }
+
+    hideSelection() {
+        this.selectionOutline.style.display = "none";
+        this.rootElement.querySelector(".selection-inactive").style.display = "block";
+        this.rootElement.querySelector(".selection-active").style.display = "none";
     }
 
     updateSelectionInfo(selStartX, selEndX) {
@@ -243,7 +255,7 @@ class AnalysisChart {
 
         const selDiffContainer = this.rootElement.querySelector(".selection-diff-container");
         selDiffContainer.innerHTML = '';
-        [...allSeries].forEach(series => {
+        this.series.forEach(series => {
             const [firstDatapointInRange, lastDatapointInRange] = this.getFirstAndLastDatapointInRange(fromTimestamp, toTimestamp, series);
             if (firstDatapointInRange) {
                 const diffAbsoluteValue = lastDatapointInRange.y - firstDatapointInRange.y;
