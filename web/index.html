@@ -75,10 +75,6 @@
     const selectedChart = all_chart_data[params["chart"]];
     const allSeries = selectedChart["chart_series"];
 
-    function timestampToDatetimeString(x) {
-        return (new Date(x * 1000)).toISOString().replace("T", " ").substring(0, 16);
-    }
-
     const analysisChartContainer = document.querySelector('#analysis-chart-container');
     const chartRepos = new Set(allSeries.map(serie => serie.repo));
     const analysisChart = new AnalysisChart({
@@ -87,7 +83,7 @@
         annotations: selectedChart["chart_annotations"],
         yAxisScalingMode: params["y-axis-scaling"],
         xFormatter: (x) => {
-            const commitDate = timestampToDatetimeString(x)
+            const commitDate = AnalysisChart.timestampToDatetimeString(x)
             const sha1s = [...chartRepos].map(repo_name => {
                 const repo_commits = selectedCommitsMap[repo_name];
                 const timestampCommitList = repo_commits.get(x);

@@ -89,13 +89,9 @@ class AnalysisChart {
             this.rootElement.querySelector('.legend-help-text').style.display = "block";
         }
 
-        function timestampToDateString(x) {
-            return (new Date(x*1000)).toISOString().substring(0, 10)
-        }
-
         var xAxis = new Rickshaw.Graph.Axis.X({
             graph: graph,
-            tickFormat: timestampToDateString,
+            tickFormat: (x) => AnalysisChart.timestampToDate(x),
             orientation: "bottom",
             pixelsPerTick: 120,
             element: this.rootElement.querySelector('.x-axis'),
@@ -137,7 +133,7 @@ class AnalysisChart {
         });
 
         for (let timestamp in args.annotations) {
-            annotator.add(timestamp, timestampToDateString(timestamp) + ": " + args.annotations[timestamp]);
+            annotator.add(timestamp, AnalysisChart.timestampToDate(timestamp) + ": " + args.annotations[timestamp]);
         }
         annotator.update();
 
@@ -302,6 +298,15 @@ class AnalysisChart {
 
     getTimeAtChartXCoord(x) {
         return new Date(1000 * this.graph.x.invert(x - this.drawAreaBoundingRect.left));
+    }
+
+    static timestampToDatetimeString(unixTimestamp) {
+        const time = new Date(unixTimestamp * 1000);
+        return time.toISOString().replace("T", " ").substring(0, 16);
+    }
+
+    static timestampToDate(x) {
+        return this.timestampToDatetimeString(x).substring(0, 10);
     }
 
     getFirstAndLastDatapointInRange(timestampFrom, timestampTo, series) {
