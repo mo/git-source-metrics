@@ -81,7 +81,7 @@ class AnalysisChart {
         if (allYAxisScalingMethods.indexOf(params["y-axis-scaling"]) == -1) {
             params["y-axis-scaling"] = "fixed-zero";
         }
-        document.querySelector('.btn-' + params['y-axis-scaling']).checked = true;
+        rootElement.querySelector('.btn-' + params['y-axis-scaling']).checked = true;
         switch (params["y-axis-scaling"]) {
             case "fixed-zero":
                 graph.configure({
@@ -238,8 +238,8 @@ class AnalysisChart {
         this.rootElement.querySelector(".selection-inactive").style.display = "none";
         this.rootElement.querySelector(".selection-active").style.display = "block";
 
-        document.querySelector(".selection-start-time").innerText = from.toISOString().replace("T", " ").slice(0, 16);
-        document.querySelector(".selection-stop-time").innerText = to.toISOString().replace("T", " ").slice(0, 16);
+        this.rootElement.querySelector(".selection-start-time").innerText = from.toISOString().replace("T", " ").slice(0, 16);
+        this.rootElement.querySelector(".selection-stop-time").innerText = to.toISOString().replace("T", " ").slice(0, 16);
 
         const selDiffContainer = this.rootElement.querySelector(".selection-diff-container");
         selDiffContainer.innerHTML = '';
