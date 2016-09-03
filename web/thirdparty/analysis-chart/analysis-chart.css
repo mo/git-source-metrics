@@ -1,74 +1,75 @@
-.main-column {
+.analysis-chart .main-column {
     position: relative;
     display: inline-block;
     font-family: Arial, Helvetica, sans-serif;
     width: 1210px;
 }
-.chart-draw-area {
+.analysis-chart .chart-draw-area {
     display: inline-block;
     margin-left: 100px;
 }
-.y-axis {
+.analysis-chart .y-axis {
     position: absolute;
     top: 0;
     bottom: 0;
     width: 100px;
 }
-.x-axis {
+.analysis-chart .x-axis {
     margin-left: 100px;
 }
-.range-slider {
+.analysis-chart .range-slider {
     margin-left: 100px;
     height: 0.4em;
 }
-.range-slider .ui-slider-handle {
+.analysis-chart .range-slider .ui-slider-handle {
     height: 0.8em;
     width: 0.8em;
 }
-.annotation-timeline {
+.analysis-chart .annotation-timeline {
     margin-left: 100px;
     margin-bottom: 20px;
 }
-.legend {
+.analysis-chart .legend {
     min-width: 290px;
 }
-.right-column {
+.analysis-chart .right-column {
     display: inline-block;
     vertical-align: top;
     margin: 0 0 0 10px;
 }
-.options-panel {
+.analysis-chart .options-panel {
     padding: 0px 10px;
     /* overflow:auto makes .options-panel DIV large enough to contain the float children. */
     overflow: auto;
 }
-.options-panel input {
+.analysis-chart .options-panel input {
     float: left;
 }
-.options-panel label {
+.analysis-chart .options-panel label {
     float: left;
     clear: left;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 11pt;
     margin-top: 1px;
 }
-.arrow {
+.analysis-chart .arrow {
     font-size: 19pt;
     color: gray;
 }
-.legend-help-text {
+.analysis-chart .legend-help-text {
     display: none;
     width: 280px;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 8pt;
 }
-.legend-help-text span {
+.analysis-chart .legend-help-text span {
     vertical-align: middle;
 }
-.scaling-buttons-container {
+.analysis-chart .scaling-buttons-container {
     margin-top: 20px;
 }
-.selection-active, .selection-inactive {
+.analysis-chart .selection-active,
+.analysis-chart .selection-inactive {
     width: 300px;
     background: #F8F8F8;
     padding: 10px;
@@ -76,28 +77,28 @@
     font-family: arial;
     font-size: 9pt;
 }
-.selection-active tr td:first-child {
+.analysis-chart .selection-active tr td:first-child {
     font-weight: bold;
     padding-right: 10px;
 }
-.selection-diff-container {
+.analysis-chart .selection-diff-container {
     margin-top: 10px;
 }
-.selection-active .colorbox {
+.analysis-chart .selection-active .colorbox {
     width: 12px;
     height: 12px;
     display: inline-block;
     border-radius: 2px;
 }
-.selection-active .diff-wrapper-outer {
+.analysis-chart .selection-active .diff-wrapper-outer {
     margin-bottom: 10px;
     overflow: hidden;
 }
-.selection-active .diff-wrapper-inner {
+.analysis-chart .selection-active .diff-wrapper-inner {
     width: calc(100% - 20px);
     margin-left: 3px;
 }
-.diff-value {
+.analysis-chart .diff-value {
     background: #E8E8E8;
     margin: 1px;
     padding: 4px;
@@ -107,10 +108,10 @@
     -moz-user-select: none;
     cursor: pointer;
 }
-.selection-active .diff-wrapper-outer > * {
+.analysis-chart .selection-active .diff-wrapper-outer > * {
     float: left;
 }
-.detail {
+.analysis-chart .detail {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;

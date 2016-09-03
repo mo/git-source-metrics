@@ -9,6 +9,7 @@ class AnalysisChart {
         this.onYAxisScalingChangedCallbacks = [];
 
         this.rootElement = args.element;
+        this.rootElement.classList.add('analysis-chart');
         this.rootElement.innerHTML = `
             <div class="main-column">
                     <div class="y-axis"></div>
