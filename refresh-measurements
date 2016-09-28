@@ -164,7 +164,7 @@ def get_sparse_commits(repo_name, repo_config):
             if not args.quiet:
                 print "WARNING: commit with sha1 %s in repo %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % (sha1, repo_name)
             continue
-        if not "tick_gap_days" in repo_config or (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
+        if not "tick_gap_days" in repo_config or args.all_commits or (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
             all_xticks.append((sha1, commit_timestamp, subject))
             last_tick_commit_date = commit_date
 
@@ -631,6 +631,7 @@ if __name__ == '__main__':
         parser.add_argument("--include-all-measured-data", action="store_true")
         parser.add_argument("--refresh-selected-metrics-only", nargs="+", metavar="METRIC_NAME")
         parser.add_argument("--measurement-order", default="random", choices=["random", "linear-oldest-first", "linear-newest-first"])
+        parser.add_argument("--all-commits", action="store_true", help="ignore per repo tick_gap_days settings and force measurement of all commits")
 
         # other commands
         parser.add_argument("--just-regenerate-jsdata", action="store_true")
