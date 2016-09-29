@@ -80,6 +80,9 @@
     const analysisChart = new AnalysisChart({
         element: analysisChartContainer,
         series: allSeries,
+        rightColumnWidth: 300,
+        width: window.innerWidth - 300,
+        height: window.innerHeight - 300,
         annotations: selectedChart["chart_annotations"],
         yAxisScalingMode: params["y-axis-scaling"],
         xFormatter: (x) => {
