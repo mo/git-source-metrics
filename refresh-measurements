@@ -397,7 +397,8 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
                 if metric_start_date:
                     too_old = commit_datetime < datetime.datetime.strptime(metric_start_date, "%Y-%m-%d")
 
-                if not too_old and not measured_data.contains_data_for(repo_name, sha1, metric_name):
+                datapoint_type = get_datapoint_type(metric_name, target)
+                if not too_old and not measured_data.contains_data_for(repo_name, sha1, datapoint_type):
                     measurements_needed_for_this_sha1.append((metric_name, target))
             if len(measurements_needed_for_this_sha1) > 0:
                 todo_list.append((repo_name, sha1, commit_timestamp, measurements_needed_for_this_sha1))
