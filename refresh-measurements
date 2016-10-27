@@ -213,15 +213,23 @@ def measure_metric(metric, target, git_workdir, sha1, timestamp):
     }
     metric_command = metric["cmd"] % cmd_params_dict
     if args.debug:
-        print >>sys.stderr, "DEBUG: " + metric_command
+        print >>sys.stderr, "DEBUG: metric command was " + repr(metric_command)
     child_env = os.environ.copy()
     external_metric_scripts_dir = os.path.join(SCRIPT_DIR, "..", "external-metric-scripts")
     if os.path.exists(external_metric_scripts_dir):
         child_env["PATH"] = external_metric_scripts_dir + ":" + child_env["PATH"]
     child_env["PATH"] = os.path.join(SCRIPT_DIR, "builtin-metric-scripts") + ":" + child_env["PATH"]
-    stdout_output = subprocess.check_output(metric_command, cwd=git_workdir, env=child_env, shell=True).strip()
+
     if args.debug:
-        print >>sys.stderr, "DEBUG: " + repr(stdout_output)
+        print >>sys.stderr, "DEBUG: cwd was " + repr(git_workdir)
+    proc = subprocess.Popen(metric_command, cwd=git_workdir, env=child_env, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    stdout_output, stderr_output = proc.communicate()
+    stdout_output = stdout_output.strip()
+    stderr_output = stderr_output.strip() if stderr_output else None
+
+    if args.debug:
+        print >>sys.stderr, "DEBUG: stdout was " + repr(stdout_output)
+        print >>sys.stderr, "DEBUG: stderr was " + repr(stderr_output)
     try:
         value = int(stdout_output)
     except ValueError:
