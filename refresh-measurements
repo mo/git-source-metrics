@@ -76,6 +76,20 @@ def human_readable_time_span(seconds):
     return output
 
 
+def add_to_path_if_exists(target_env, folder):
+    if os.path.exists(folder):
+        if args.verbose:
+            print "[DEBUG] add '%s' to PATH" % folder
+        target_env["PATH"] = target_env["PATH"] + ":" + folder
+
+
+def prepend_to_path_if_exists(target_env, folder):
+    if os.path.exists(folder):
+        if args.verbose:
+            print "[DEBUG] preprend '%s' to PATH" % folder
+        target_env["PATH"] = folder + ":" + target_env["PATH"]
+
+
 def local_workingdir(git_url):
     code_cache_dir = os.path.expanduser(CODE_CACHE_DIR)
     if not os.path.exists(code_cache_dir):
@@ -212,22 +226,40 @@ def measure_metric(metric, target, git_workdir, sha1, timestamp):
         "target": target,
     }
     metric_command = metric["cmd"] % cmd_params_dict
-    if args.debug:
+    if args.verbose:
         print >>sys.stderr, "DEBUG: metric command was " + repr(metric_command)
+
+    child_env = os.environ.copy()
+    # Prepend (rather than append) "builtin-metric-scripts" to $PATH because we want
+    # measurements to have as little dependency on the host machine as possible.
+    prepend_to_path_if_exists(child_env, os.path.join(SCRIPT_DIR, "builtin-metric-scripts"))
+    external_scripts_root = os.path.join(SCRIPT_DIR, "../external-metric-scripts")
+    # If your metrics require scripts for different git repositories you can add
+    # each such git repo as a submodule under the "external-metric-scripts" dir
+    # and every dir in every such repo will be put on the $PATH during
+    # measurement. You can also add metric scripts directly in
+    # "external-metric-scripts" without using a git submodule if you want.
+    if os.path.isdir(external_scripts_root):
+        for dirpath, _, _ in os.walk(external_scripts_root, followlinks=True):
+            prepend_to_path_if_exists(child_env, dirpath)
+    # Don't prepend this because it has host specific dependencies, it's added
+    # only as a convenience.
+    add_to_path_if_exists(child_env, "/usr/local/bin")
+
     child_env = os.environ.copy()
     external_metric_scripts_dir = os.path.join(SCRIPT_DIR, "..", "external-metric-scripts")
     if os.path.exists(external_metric_scripts_dir):
         child_env["PATH"] = external_metric_scripts_dir + ":" + child_env["PATH"]
     child_env["PATH"] = os.path.join(SCRIPT_DIR, "builtin-metric-scripts") + ":" + child_env["PATH"]
 
-    if args.debug:
+    if args.verbose:
         print >>sys.stderr, "DEBUG: cwd was " + repr(git_workdir)
     proc = subprocess.Popen(metric_command, cwd=git_workdir, env=child_env, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     stdout_output, stderr_output = proc.communicate()
     stdout_output = stdout_output.strip()
     stderr_output = stderr_output.strip() if stderr_output else None
 
-    if args.debug:
+    if args.verbose:
         print >>sys.stderr, "DEBUG: stdout was " + repr(stdout_output)
         print >>sys.stderr, "DEBUG: stderr was " + repr(stderr_output)
     try:
@@ -632,7 +664,7 @@ if __name__ == '__main__':
 
         parser = argparse.ArgumentParser()
         parser.add_argument("--quiet", action="store_true")
-        parser.add_argument("--debug", action="store_true")
+        parser.add_argument("--verbose", action="store_true")
 
         # measurement options
         parser.add_argument("--skip-fetch", action="store_true", help="don't call 'git fetch', just process what is available locally (for debugging only)")
