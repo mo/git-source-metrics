@@ -448,6 +448,9 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
     elif args.measurement_order == "linear-newest-first":
         todo_list = list(reversed(todo_list))
 
+    if args.max_measurements != -1:
+        todo_list = todo_list[0:args.max_measurements]
+
     measurements_done = 0
     measurements_total = 0
     for (_, sha1, _, measurements_needed_for_this_sha1) in todo_list:
@@ -673,6 +676,7 @@ if __name__ == '__main__':
         parser.add_argument("--refresh-selected-metrics-only", nargs="+", metavar="METRIC_NAME")
         parser.add_argument("--measurement-order", default="random", choices=["random", "linear-oldest-first", "linear-newest-first"])
         parser.add_argument("--all-commits", action="store_true", help="ignore per repo tick_gap_days settings and force measurement of all commits")
+        parser.add_argument("--max-measurements", metavar="N", type=int, default=-1, help="exit after making N measurements")
 
         # other commands
         parser.add_argument("--just-regenerate-jsdata", action="store_true")
