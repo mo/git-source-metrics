@@ -147,7 +147,9 @@ def get_sparse_commits(repo_name, repo_config):
     branch = "origin/" + repo_config.get("branch", "master")
     git_workdir = local_workingdir(repo_config["git_url"])
     git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
-    git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).splitlines()
+    # NOTE: We use .split("\n") rather than .splitlines() here because the latter
+    # splits on \n, \r and \r\n and git allows \r in commit subject lines.
+    git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).split("\n")
 
     all_xticks = []
     last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
@@ -160,16 +162,21 @@ def get_sparse_commits(repo_name, repo_config):
         commit_date_limit = datetime.datetime.min
 
     while len(git_log_output) > 0:
-        sha1, commit_timestamp, subject = git_log_output.pop(-1).split(" ", 2)
+        log_line = git_log_output.pop(-1)
+        sha1, commit_timestamp, subject = log_line.split(" ", 2)
         if not commit_timestamp:
             if not args.quiet:
                 # Happens for 281a10c59d5a6522b2bebc6f78c165816d1f8421 in https://github.com/mozilla/gecko-dev
                 # Not sure if this is a git bug or not, I couldn't find a way to create a commit with empty
                 # author name (like the one above) so maybe it's a bug in the mercurial to git conversion tool
                 # that mozilla uses.
-                print "WARNING: commit with sha1 %s in repo %s looks invalid, ignoring." % (sha1, repo_name)
+                print "WARNING: failed to parse 'sha1 commit_timestamp subject' parts (empty commit_timestamp) from git log output; sha1=%s repo=%s and line=%s" % (sha1, repo_name, log_line)
             continue
-        commit_date = datetime.datetime.fromtimestamp(int(commit_timestamp))
+        try:
+            commit_date = datetime.datetime.fromtimestamp(int(commit_timestamp))
+        except ValueError:
+            print "WARNING: failed to parse 'sha1 commit_timestamp subject' parts (non-numerical commit_timestamp) from git log output; sha1=%s repo=%s and line=%s" % (sha1, repo_name, log_line)
+            continue
         if commit_date < commit_date_limit:
             if not args.quiet:
                 print "INFO: commit with sha1 %s in repo %s is too old, ignoring." % (sha1, repo_name)
