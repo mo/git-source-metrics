@@ -201,7 +201,7 @@ def compute_moving_average(metric, repo_name, target_sha1, commit_timestamp, sel
     # underlying metric so it should always be 2 or higher (often higher).
     tick_width = metric["moving_average_tick_width"]
     underlying_metric_name = metric["underlying_metric"]
-    selected_sha1s = [sha1 for (sha1, commit_timestamp) in selected_commits]
+    selected_sha1s = [sha1 for (sha1, _, _) in selected_commits]
     # "underlying_data" will be a dict that maps sha1 to { "timestamp": X, "value": Y }
     underlying_data = measured_data.get_repo_metric_dict(repo_name, underlying_metric_name)
     # To compute the "moving average" value at target_sha1 we take the value of
@@ -506,7 +506,7 @@ def refresh_computed_metrics(config, selected_commits, data_filename, measured_d
 
     todo_list = []
     for repo_name, repo_metrics in repo_to_computed_metrics_map.iteritems():
-        for sha1, commit_timestamp in selected_commits[repo_name]:
+        for sha1, commit_timestamp, msg in selected_commits[repo_name]:
             metrics_that_lack_data_for_this_sha1 = []
             commit_datetime = datetime.datetime.fromtimestamp(int(commit_timestamp))
             for metric_name in repo_metrics:
