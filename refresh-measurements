@@ -631,7 +631,10 @@ def main():
 
     if not args.skip_fetch and not args.just_regenerate_jsdata:
         timing_data.fetch_start_time = datetime.datetime.now()
-        git_urls = [repo["git_url"] for (_, repo) in config["git_repos"].iteritems()]
+        # Use set comprehension to build "git_urls" because if "git_repos" in
+        # config might contain the same git url twice but with different
+        # branches (mozilla inbound vs aurora etc).
+        git_urls = {repo["git_url"] for (_, repo) in config["git_repos"].iteritems()}
         fetch_latest_code(git_urls)
         timing_data.fetch_end_time = datetime.datetime.now()
 
