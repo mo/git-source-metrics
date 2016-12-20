@@ -16,6 +16,10 @@
 <script src="../../all_chart_data.js"></script>
 
 <style>
+body {
+    margin-left: 0;
+    margin-right: 0;
+}
 #chart_select {
     width: 1100px;
     margin-left: 100px;
@@ -81,8 +85,8 @@
     const analysisChart = new AnalysisChart({
         element: analysisChartContainer,
         series: allSeries,
-        rightColumnWidth: 300,
-        width: window.innerWidth - 300,
+        rightColumnWidth: 370,
+        width: window.innerWidth,
         height: window.innerHeight - 300,
         annotations: selectedChart["chart_annotations"],
         yAxisScalingMode: params["y-axis-scaling"],
