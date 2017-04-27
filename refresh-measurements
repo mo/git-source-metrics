@@ -161,6 +161,12 @@ def get_sparse_commits(repo_name, repo_config):
     else:
         commit_date_limit = datetime.datetime.min
 
+    tick_gap_days = repo_config.get("tick_gap_days", None)
+    if args.tick_gap_days == 0:
+        tick_gap_days = None
+    elif args.tick_gap_days > 0:
+        tick_gap_days = args.tick_gap_days
+
     while len(git_log_output) > 0:
         log_line = git_log_output.pop(-1)
         sha1, commit_timestamp, subject = log_line.split(" ", 2)
@@ -185,7 +191,7 @@ def get_sparse_commits(repo_name, repo_config):
             if not args.quiet:
                 print "WARNING: commit with sha1 %s in repo %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % (sha1, repo_name)
             continue
-        if not "tick_gap_days" in repo_config or args.all_commits or (commit_date - last_tick_commit_date).days >= repo_config["tick_gap_days"]:
+        if not tick_gap_days or args.all_commits or (commit_date - last_tick_commit_date).days >= tick_gap_days:
             all_xticks.append((sha1, commit_timestamp, subject))
             last_tick_commit_date = commit_date
 
@@ -686,6 +692,7 @@ if __name__ == '__main__':
         parser.add_argument("--refresh-selected-metrics-only", nargs="+", metavar="METRIC_NAME")
         parser.add_argument("--measurement-order", default="random", choices=["random", "linear-oldest-first", "linear-newest-first"])
         parser.add_argument("--all-commits", action="store_true", help="ignore per repo tick_gap_days settings and force measurement of all commits")
+        parser.add_argument("--tick-gap-days", type=int, help="minimum number of days between commits to measure")
         parser.add_argument("--max-measurements", metavar="N", type=int, default=-1, help="exit after making N measurements")
 
         # other commands
