@@ -459,7 +459,9 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
     if args.measurement_order == "random":
         random.shuffle(todo_list)
     elif args.measurement_order == "linear-newest-first":
-        todo_list = list(reversed(todo_list))
+        todo_list = sorted(todo_list, key=lambda todo_item: datetime.datetime.fromtimestamp(int(todo_item[2])), reverse=True)
+    elif args.measurement_order == "linear-oldest-first":
+        todo_list = sorted(todo_list, key=lambda todo_item: datetime.datetime.fromtimestamp(int(todo_item[2])))
 
     if args.max_measurements != -1:
         todo_list = todo_list[0:args.max_measurements]
