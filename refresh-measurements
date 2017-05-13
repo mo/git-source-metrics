@@ -493,7 +493,16 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
                     target_suffix = " for " + target
                 else:
                     target_suffix = ""
-                print >> sys.stderr, "%s: measuring %s%s at %s ... %d%% done, est. time left: %s" % (repo_name, metric_name, target_suffix, sha1, 100*measurements_done/measurements_total, human_readable_time_span(estimated_seconds_left))
+                print_dict = {
+                    "repo_name": repo_name,
+                    "metric_name": metric_name,
+                    "target_suffix": target_suffix,
+                    "sha1": sha1[0:7],
+                    "commit_date": datetime.datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M"),
+                    "percent_done": 100 * measurements_done / measurements_total,
+                    "time_left": human_readable_time_span(estimated_seconds_left)
+                }
+                print >> sys.stderr, "%(repo_name)s: measuring %(metric_name)s%(target_suffix)s at %(sha1)s from %(commit_date)s ... %(percent_done)d%% done, est. time left: %(time_left)s" % print_dict
             value = measure_metric(config["metrics"][metric_name], target, git_workdir, sha1, timestamp)
             if value != None:
                 datapoint_type = get_datapoint_type(metric_name, target)
