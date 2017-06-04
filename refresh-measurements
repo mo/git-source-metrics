@@ -316,7 +316,7 @@ class MeasuredData(object):
         self.datapoints = eval(open(filename).read())
 
     def save_to_file(self, filename):
-        string_data = pprint.pformat(self.datapoints)
+        string_data = json.dumps(self.datapoints)
         file_dir = os.path.dirname(filename)
         if not os.path.exists(file_dir):
             os.makedirs(file_dir)
