@@ -267,14 +267,20 @@ def measure_metric(metric, target, git_workdir, sha1, timestamp):
 
     if args.verbose:
         print >>sys.stderr, "DEBUG: cwd was " + repr(git_workdir)
+
+    command_time_begin = time.time()
     proc = subprocess.Popen(metric_command, cwd=git_workdir, env=child_env, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     stdout_output, stderr_output = proc.communicate()
+    command_secs_taken = int(time.time() - command_time_begin)
+
     stdout_output = stdout_output.strip()
     stderr_output = stderr_output.strip() if stderr_output else None
 
     if args.verbose:
+        print >>sys.stderr, "DEBUG: command took " + human_readable_time_span(command_secs_taken) + " to run"
         print >>sys.stderr, "DEBUG: stdout was " + repr(stdout_output)
         print >>sys.stderr, "DEBUG: stderr was " + repr(stderr_output)
+
     try:
         value = int(stdout_output)
     except ValueError:
