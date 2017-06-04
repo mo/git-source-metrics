@@ -240,7 +240,7 @@ def measure_metric(metric, target, git_workdir, sha1, timestamp):
     }
     metric_command = metric["cmd"] % cmd_params_dict
     if args.verbose:
-        print >>sys.stderr, "DEBUG: metric command was " + repr(metric_command)
+        print >>sys.stderr, "DEBUG: metric command is " + repr(metric_command)
 
     child_env = os.environ.copy()
     # Prepend (rather than append) "builtin-metric-scripts" to $PATH because we want
