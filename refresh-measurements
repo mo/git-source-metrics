@@ -479,6 +479,7 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
     for (_, sha1, _, measurements_needed_for_this_sha1) in todo_list:
         measurements_total += len(measurements_needed_for_this_sha1)
     measurement_start_time = datetime.datetime.now()
+    time_last_save = time.time()
     for (repo_name, sha1, timestamp, measurements_needed_for_this_sha1) in todo_list:
         git_workdir = local_workingdir(config["git_repos"][repo_name]["git_url"])
 
@@ -516,10 +517,15 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
                 datapoint_type = get_datapoint_type(metric_name, target)
                 measured_data.add_data(repo_name, sha1, timestamp, datapoint_type, value)
 
-        measured_data.save_to_file(data_filename)
-        save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
-    else:
-        save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
+
+        if int(time.time() - time_last_save) > 5:
+            print "Saving data to disk ..."
+            measured_data.save_to_file(data_filename)
+            save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
+            time_last_save = time.time()
+
+    measured_data.save_to_file(data_filename)
+    save_data_jscopy(config, selected_commits, measured_data, jsdata_filename)
 
 
 def refresh_computed_metrics(config, selected_commits, data_filename, measured_data, jsdata_filename):
