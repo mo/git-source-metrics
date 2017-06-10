@@ -8,6 +8,7 @@ import sys
 import json
 import stat
 import time
+import copy
 import shutil
 import random
 import tempfile
@@ -635,13 +636,38 @@ def validate_config(config):
         if ":" in metric_name:
             print >> sys.stderr, "ERROR: metric names may not contain the character ':', found invalid metric name '" + metric_name + "'"
             sys.exit(1)
+    for chart_name, chart_config in config["charts"].iteritems():
+        for series in chart_config["chart_series"]:
+            if series["repo"] == "*":
+                if series.get("color", None):
+                    print >> sys.stderr, "ERROR: series with repo=\"*\" may not have a color attribute set (set color attributes on each repository instead), found invalid series in chart " + chart_name
+                    sys.exit(1)
+                for repo_name, repo_config in config["git_repos"].iteritems():
+                    if not repo_config.get("color", None):
+                        print >> sys.stderr, "ERROR: chart \"" + chart_name + "\" has series with repo=\"*\" attribute so all repositories in config must have a color attribute defined under \"git_repos\", but repository \"" + repo_name + "\" lacks such an attribute"
+                        sys.exit(1)
 
+
+def expand_wildcards(config):
+    for chart_name, chart_config in config["charts"].iteritems():
+        series_with_expanded_wildcards = []
+        for series in chart_config["chart_series"]:
+            if series["repo"] == "*":
+                for repo_name, repo_config in config["git_repos"].iteritems():
+                    repo_series = copy.deepcopy(series)
+                    repo_series["repo"] = repo_name
+                    repo_series["color"] = repo_config["color"]
+                    series_with_expanded_wildcards.append(repo_series)
+            else:
+                series_with_expanded_wildcards.append(series)
+        chart_config["chart_series"] = series_with_expanded_wildcards
 
 def load_config():
     config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
     for (metric_name, metric_obj) in config["metrics"].iteritems():
         metric_obj["name"] = metric_name
     validate_config(config)
+    expand_wildcards(config)
     return config
 
 
