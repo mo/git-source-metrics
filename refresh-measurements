@@ -325,10 +325,13 @@ class MeasuredData(object):
     def clear_data_for_repo(self, repo_name):
         self.datapoints.pop(repo_name, None)
 
-    def clear_data_for_repo_metric(self, repo_name, metric_name):
+    def clear_data_for_repo_metric(self, repo_name, target_metric_name):
         repo_data = self.datapoints.get(repo_name)
         if repo_data:
-            repo_data.pop(metric_name, None)
+            for datapoint_type in repo_data.keys():
+                metric_name = datapoint_type.split(":", 1)[0]
+                if metric_name == target_metric_name:
+                    repo_data.pop(datapoint_type, None)
 
     def get_repo_metric_dict(self, repo_name, metric_name):
         return self.datapoints.setdefault(repo_name, {}).setdefault(metric_name, {})
