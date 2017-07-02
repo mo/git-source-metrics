@@ -653,7 +653,7 @@ def expand_wildcards(config):
         series_with_expanded_wildcards = []
         for series in chart_config["chart_series"]:
             if series["repo"] == "*":
-                for repo_name, repo_config in config["git_repos"].iteritems():
+                for repo_name, repo_config in sorted(config["git_repos"].iteritems(), reverse=True):
                     repo_series = copy.deepcopy(series)
                     repo_series["repo"] = repo_name
                     repo_series["color"] = repo_config["color"]
