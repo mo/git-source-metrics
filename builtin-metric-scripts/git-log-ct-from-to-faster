@@ -1,0 +1,129 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import glob
+import hashlib
+import sqlite3
+import argparse
+import datetime
+import subprocess
+
+SQLITE_CACHE_DIR = "~/.git-source-metrics/git-log-sqlite-cache/"
+
+def sha256(input_str):
+    h = hashlib.sha256()
+    h.update(input_str)
+    h.digest()
+    return h.hexdigest()
+
+
+def get_sqlite_cache_dir():
+    return os.path.expanduser(SQLITE_CACHE_DIR)
+
+
+def get_repo_identifier(git_workdir):
+    return filter(str.isalnum, git_workdir)[-50:] + "_" + sha256(git_workdir)
+
+
+def get_sqlite_cache_file(sha1):
+    sqlite_cache_dir = get_sqlite_cache_dir()
+    if not os.path.exists(sqlite_cache_dir):
+        os.makedirs(sqlite_cache_dir)
+    git_workdir = os.getcwd()
+    sqlite_cache_filename = get_repo_identifier(git_workdir) + "-" + sha1 + ".db"
+    return os.path.join(sqlite_cache_dir, sqlite_cache_filename)
+
+
+def get_sqlite_cache(sha1):
+    cleanup_sqlite_cache_files_older_than(args.gitlog_cache_minutes)
+    sqlite_cache_filename = get_sqlite_cache_file(sha1)
+    if not os.path.exists(sqlite_cache_filename):
+        return None
+    return sqlite3.connect(sqlite_cache_filename)
+
+
+def cleanup_sqlite_cache_files_older_than(minutes):
+    # cleanup sqlite cache files for this git repo if they are older than "minutes"
+    git_workdir = os.getcwd()
+    old_cache_glob = os.path.join(get_sqlite_cache_dir(), get_repo_identifier(git_workdir) + "*.db")
+    for old_cache_file in glob.glob(old_cache_glob):
+        if datetime.datetime.now() - datetime.datetime.fromtimestamp(os.stat(old_cache_file).st_mtime) > datetime.timedelta(minutes=minutes):
+            if args.verbose:
+                print "[DEBUG] removing outdated sqlite cache file at: " + old_cache_file
+            os.remove(old_cache_file)
+
+
+def recreate_sqlite_cache(sha1):
+    # cleanup all sqlite cache files for this git repo, regardless of age
+    cleanup_sqlite_cache_files_older_than(0)
+
+    # create a new sqlite cache file for this repo
+    sqlite_cache_filename = get_sqlite_cache_file(sha1)
+    conn = sqlite3.connect(sqlite_cache_filename)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE commits (
+                    sha1 TEXT,
+                    commit_timestamp INTEGER,
+                    author_email TEXT,
+                    commit_subject TEXT
+                 )""")
+    c.execute("""CREATE INDEX commit_timestamp_index ON commits(commit_timestamp)""")
+
+    proc = subprocess.Popen("git log --pretty='%%H %%ct %%ae %%s' %s" % sha1,
+                            stdout=subprocess.PIPE, bufsize=1, shell=True)
+    for line in iter(proc.stdout.readline, b''):
+        sha1, commit_timestamp, rest_of_line = line.strip().split(" ", 2)
+        try:
+            author_email, commit_subject = rest_of_line.split(' ', 1)
+        except ValueError:
+            # empty commit message
+            author_email = rest_of_line
+            commit_subject = ""
+        try:
+            commit_timestamp = int(commit_timestamp)
+        except:
+            # For example 281a10c and e589091 etc in https://github.com/mozilla/gecko-dev
+            # git fails to print --pretty=format:"%ct %H" properly even though
+            # the commits have timestamps. Seems like git 1.7.10.4 has a problem
+            # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
+            commit_timestamp = 0
+
+        params = (sha1.decode('utf-8'), commit_timestamp, author_email.decode('utf-8'), commit_subject.decode('utf-8'))
+        c.execute("INSERT INTO commits VALUES (?, ?, ?, ?)", params)
+
+    conn.commit()
+    return conn
+
+
+def main():
+    sha1 = subprocess.check_output("git rev-parse " + args.refspec, shell=True).strip()
+
+    sqlite_conn = get_sqlite_cache(sha1)
+    if not sqlite_conn:
+        sqlite_conn = recreate_sqlite_cache(sha1)
+
+    cursor = sqlite_conn.cursor()
+    query_params = (args.from_timestamp, args.to_timestamp)
+    results = cursor.execute("""SELECT sha1, commit_timestamp, author_email, commit_subject
+                                FROM commits
+                                WHERE ? <= commit_timestamp AND commit_timestamp <= ?""", query_params)
+    for sha1, commit_timestamp, author_email, commit_subject in results:
+        print "%s %s %s %s" % (sha1.encode("utf-8"), commit_timestamp, author_email.encode("utf-8"), commit_subject.encode("utf-8"))
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('refspec', metavar='REF_SPEC', nargs='?', default="origin/master", type=str,
+                    help='refspec where git-log should start, defaults to "origin/master"')
+parser.add_argument('--from-timestamp', metavar='FROM', type=int, default=0,
+                    help=('only print commits where the commit timestamp is more '
+                          'recent that FROM (unix timestamp)'))
+parser.add_argument('--to-timestamp', metavar='TO', type=int, default=sys.maxint,
+                    help=('only print commits where the commit timestamp is more '
+                          'recent that TO (unix timestamp)'))
+parser.add_argument('--gitlog-cache-minutes', metavar='MINUTES', type=int, default=5,
+                    help=('if there is a cached sqlite db containing a git log less than MINUTES old, use that instead of the real git log'))
+parser.add_argument('--verbose', action="store_true")
+
+args = parser.parse_args()
+main()
