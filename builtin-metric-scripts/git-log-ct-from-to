@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+
+import sys
+import argparse
+import subprocess
+
+parser = argparse.ArgumentParser()
+parser.add_argument('refspec', metavar='REF_SPEC', nargs='?', default="origin/master", type=str,
+                    help='refspec where git-log should start, defaults to "origin/master"')
+parser.add_argument('--from-timestamp', metavar='FROM', type=int, default=0,
+                    help=('only print commits where the commit timestamp is more '
+                          'recent that FROM (unix timestamp)'))
+parser.add_argument('--to-timestamp', metavar='TO', type=int, default=sys.maxint,
+                    help=('only print commits where the commit timestamp is more '
+                          'recent that TO (unix timestamp)'))
+args = parser.parse_args()
+
+proc = subprocess.Popen("git log --pretty='%%H %%ct %%ae %%s' %s" % args.refspec,
+                        stdout=subprocess.PIPE, bufsize=1, shell=True)
+for line in iter(proc.stdout.readline, b''):
+    current_sha1, current_timestamp, rest_of_line = line.strip().split(" ", 2)
+    try:
+        current_timestamp = int(current_timestamp)
+    except:
+        # For example 281a10c and e589091 etc in https://github.com/mozilla/gecko-dev
+        # git fails to print --pretty=format:"%ct %H" properly even though
+        # the commits have timestamps. Seems like git 1.7.10.4 has a problem
+        # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
+        current_timestamp = 0
+    if args.from_timestamp <= current_timestamp and current_timestamp <= args.to_timestamp:
+        print "%s %s %s" % (current_sha1, current_timestamp, rest_of_line)
+
+# (stdoutdata, stderrdata) = proc.communicate()
+# assert stdoutdata == '' or stdoutdata is None
+# assert stderrdata == '' or stderrdata is None
