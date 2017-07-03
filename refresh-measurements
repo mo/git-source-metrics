@@ -144,7 +144,7 @@ def git_reset_to(repo_name, git_workdir, sha1):
 
 
 def get_sparse_commits(repo_name, repo_config):
-    branch = "origin/" + repo_config.get("branch", "master")
+    branch = repo_config["branch"]
     git_workdir = local_workingdir(repo_config["git_url"])
     git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
     # NOTE: We use .split("\n") rather than .splitlines() here because the latter
@@ -235,11 +235,12 @@ def compute_metric(metric, repo_name, sha1, commit_timestamp, selected_commits, 
         sys.exit(1)
 
 
-def measure_metric(metric, target, git_workdir, sha1, timestamp):
+def measure_metric(metric, target, git_workdir, sha1, timestamp, branch):
     cmd_params_dict = {
         "sha1": sha1,
         "timestamp": timestamp,
         "target": target,
+        "branch": branch,
     }
     metric_command = metric["cmd"] % cmd_params_dict
     if args.verbose:
@@ -516,7 +517,7 @@ def refresh_measurements(config, selected_commits, data_filename, measured_data,
                     "time_left": human_readable_time_span(estimated_seconds_left)
                 }
                 print >> sys.stderr, "%(repo_name)s: measuring %(metric_name)s%(target_suffix)s at %(sha1)s from %(commit_date)s ... %(percent_done)d%% done, est. time left: %(time_left)s" % print_dict
-            value = measure_metric(config["metrics"][metric_name], target, git_workdir, sha1, timestamp)
+            value = measure_metric(config["metrics"][metric_name], target, git_workdir, sha1, timestamp, config["git_repos"][repo_name]["branch"])
             if value != None:
                 datapoint_type = get_datapoint_type(metric_name, target)
                 measured_data.add_data(repo_name, sha1, timestamp, datapoint_type, value)
@@ -669,6 +670,8 @@ def load_config():
     config = eval(open(os.path.join(SCRIPT_DIR, "..", "config.pyon")).read())
     for (metric_name, metric_obj) in config["metrics"].iteritems():
         metric_obj["name"] = metric_name
+    for (_, repo_config) in config["git_repos"].iteritems():
+        repo_config["branch"] = "origin/" + repo_config.get("branch", "master")
     validate_config(config)
     expand_wildcards(config)
     return config
