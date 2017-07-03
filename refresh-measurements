@@ -146,7 +146,11 @@ def git_reset_to(repo_name, git_workdir, sha1):
 def get_sparse_commits(repo_name, repo_config):
     branch = repo_config["branch"]
     git_workdir = local_workingdir(repo_config["git_url"])
-    git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
+    treepath = repo_config.get("treepath", "all")
+    if treepath == 'first-parent':
+        git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
+    else:
+        git_log_cmd = "git log --pretty=format:'%H %ct %s' " + branch
     # NOTE: We use .split("\n") rather than .splitlines() here because the latter
     # splits on \n, \r and \r\n and git allows \r in commit subject lines.
     git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).split("\n")
