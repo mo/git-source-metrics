@@ -172,10 +172,13 @@ def get_sparse_commits(repo_name, repo_config):
         sha1, commit_timestamp, subject = log_line.split(" ", 2)
         if not commit_timestamp:
             if not args.quiet:
-                # Happens for 281a10c59d5a6522b2bebc6f78c165816d1f8421 in https://github.com/mozilla/gecko-dev
-                # Not sure if this is a git bug or not, I couldn't find a way to create a commit with empty
-                # author name (like the one above) so maybe it's a bug in the mercurial to git conversion tool
-                # that mozilla uses.
+                # For example 281a10c and e589091 etc in https://github.com/mozilla/gecko-dev
+                # git fails to print --pretty=format:"%ct %H" properly even though
+                # the commits have timestamps. Seems like git 1.7.10.4 has a problem
+                # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
+                # I couldn't find a way to create a commit with empty author name (like the one
+                # above) so maybe it's a bug in the mercurial to git conversion tool that
+                # mozilla uses.
                 print "WARNING: failed to parse 'sha1 commit_timestamp subject' parts (empty commit_timestamp) from git log output; sha1=%s repo=%s and line=%s" % (sha1, repo_name, log_line)
             continue
         try:
