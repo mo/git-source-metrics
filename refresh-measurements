@@ -150,7 +150,7 @@ def get_sparse_commits(repo_name, repo_config):
     if treepath == 'first-parent':
         git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
     else:
-        git_log_cmd = "git log --pretty=format:'%H %ct %s' " + branch
+        git_log_cmd = "git log --date-order --pretty=format:'%H %ct %s' " + branch
     # NOTE: We use .split("\n") rather than .splitlines() here because the latter
     # splits on \n, \r and \r\n and git allows \r in commit subject lines.
     git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).split("\n")
