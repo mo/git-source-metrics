@@ -65,21 +65,22 @@ def recreate_sqlite_cache(sha1):
     c.execute("""CREATE TABLE commits (
                     sha1 TEXT,
                     commit_timestamp INTEGER,
+                    parent_count int,
                     author_email TEXT,
                     commit_subject TEXT
                  )""")
     c.execute("""CREATE INDEX commit_timestamp_index ON commits(commit_timestamp)""")
 
-    proc = subprocess.Popen("git log --pretty='%%H %%ct %%ae %%s' %s" % sha1,
+    SEPARATOR_TOKEN = "(~_~)"
+    proc = subprocess.Popen("git log --pretty='%H %ct %P" + SEPARATOR_TOKEN + "%ae" + SEPARATOR_TOKEN + "%s' " + sha1,
                             stdout=subprocess.PIPE, bufsize=1, shell=True)
     for line in iter(proc.stdout.readline, b''):
         sha1, commit_timestamp, rest_of_line = line.strip().split(" ", 2)
-        try:
-            author_email, commit_subject = rest_of_line.split(' ', 1)
-        except ValueError:
-            # empty commit message
-            author_email = rest_of_line
-            commit_subject = ""
+        parent_hashes_str, author_email, commit_subject = rest_of_line.split(SEPARATOR_TOKEN, 2)
+        if not parent_hashes_str:
+            parent_count = 0
+        else:
+            parent_count = len(parent_hashes_str.split(" "))
         try:
             commit_timestamp = int(commit_timestamp)
         except:
@@ -89,8 +90,8 @@ def recreate_sqlite_cache(sha1):
             # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
             commit_timestamp = 0
 
-        params = (sha1.decode('utf-8'), commit_timestamp, author_email.decode('utf-8'), commit_subject.decode('utf-8'))
-        c.execute("INSERT INTO commits VALUES (?, ?, ?, ?)", params)
+        params = (sha1.decode('utf-8'), commit_timestamp, parent_count, author_email.decode('utf-8'), commit_subject.decode('utf-8'))
+        c.execute("INSERT INTO commits VALUES (?, ?, ?, ?, ?)", params)
 
     conn.commit()
     return conn
@@ -105,11 +106,11 @@ def main():
 
     cursor = sqlite_conn.cursor()
     query_params = (args.from_timestamp, args.to_timestamp)
-    results = cursor.execute("""SELECT sha1, commit_timestamp, author_email, commit_subject
+    results = cursor.execute("""SELECT sha1, commit_timestamp, parent_count, author_email, commit_subject
                                 FROM commits
                                 WHERE ? <= commit_timestamp AND commit_timestamp <= ?""", query_params)
-    for sha1, commit_timestamp, author_email, commit_subject in results:
-        print "%s %s %s %s" % (sha1.encode("utf-8"), commit_timestamp, author_email.encode("utf-8"), commit_subject.encode("utf-8"))
+    for sha1, commit_timestamp, parent_count, author_email, commit_subject in results:
+        print "%s %s %s %s %s" % (sha1.encode("utf-8"), commit_timestamp, parent_count, author_email.encode("utf-8"), commit_subject.encode("utf-8"))
 
 
 parser = argparse.ArgumentParser()
