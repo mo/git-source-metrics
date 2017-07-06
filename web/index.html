@@ -86,8 +86,8 @@ body {
         element: analysisChartContainer,
         series: allSeries,
         rightColumnWidth: 370,
-        width: window.innerWidth,
-        height: window.innerHeight - 300,
+        width: params["width"] || window.innerWidth,
+        height: params["height"] || window.innerHeight - 300,
         annotations: selectedChart["chart_annotations"],
         yAxisScalingMode: params["y-axis-scaling"],
         xFormatter: (x) => {
