@@ -157,13 +157,16 @@ def get_sparse_commits(repo_name, repo_config):
 
     all_xticks = []
     last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
+    commit_date_limit = datetime.datetime.min
     if args.ignore_commits_before:
         if len(args.ignore_commits_before) == 4:
             commit_date_limit = datetime.datetime.strptime(args.ignore_commits_before, "%Y")
         else:
             commit_date_limit = datetime.datetime.strptime(args.ignore_commits_before, "%Y-%m-%d")
     else:
-        commit_date_limit = datetime.datetime.min
+        repo_start_date = repo_config.get("start_date", None)
+        if repo_start_date:
+            commit_date_limit = datetime.datetime.strptime(repo_start_date, "%Y-%m-%d")
 
     tick_gap_days = repo_config.get("tick_gap_days", None)
     if args.tick_gap_days == 0:
