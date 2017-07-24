@@ -654,6 +654,9 @@ def validate_config(config):
                 if series.get("color", None):
                     print >> sys.stderr, "ERROR: series with repo=\"*\" may not have a color attribute set (set color attributes on each repository instead), found invalid series in chart " + chart_name
                     sys.exit(1)
+            if series["metric"] not in config["metrics"]:
+                print >> sys.stderr, "ERROR: invalid metric name '%(metric_name)s', found in chart %(chart_name)s " % { "metric_name": series['metric'], "chart_name": chart_name }
+                sys.exit(1)
 
 
 def expand_wildcards(config):
