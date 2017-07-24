@@ -379,7 +379,8 @@ def save_data_jscopy(config, selected_commits, measured_data, jsdata_filename):
                 metric_title = all_metrics[series["metric"]]["title"].replace("'", r"\'") % title_format_dict
                 series_title = metric_title
                 jsdata_temp_file.write("            name: '%s in %s',\n" % (series_title, series["repo"]))
-                jsdata_temp_file.write("            color: '%s',\n" % series["color"])
+                if "color" in series:
+                    jsdata_temp_file.write("            color: '%s',\n" % series["color"])
                 jsdata_temp_file.write("            repo: '%s',\n" % series["repo"])
                 jsdata_temp_file.write("            data: [")
                 datapoint_type = get_datapoint_type(series["metric"], target)
@@ -653,10 +654,6 @@ def validate_config(config):
                 if series.get("color", None):
                     print >> sys.stderr, "ERROR: series with repo=\"*\" may not have a color attribute set (set color attributes on each repository instead), found invalid series in chart " + chart_name
                     sys.exit(1)
-                for repo_name, repo_config in config["git_repos"].iteritems():
-                    if not repo_config.get("color", None):
-                        print >> sys.stderr, "ERROR: chart \"" + chart_name + "\" has series with repo=\"*\" attribute so all repositories in config must have a color attribute defined under \"git_repos\", but repository \"" + repo_name + "\" lacks such an attribute"
-                        sys.exit(1)
 
 
 def expand_wildcards(config):
@@ -667,7 +664,8 @@ def expand_wildcards(config):
                 for repo_name, repo_config in sorted(config["git_repos"].iteritems(), reverse=True):
                     repo_series = copy.deepcopy(series)
                     repo_series["repo"] = repo_name
-                    repo_series["color"] = repo_config["color"]
+                    if "color" in repo_config:
+                        repo_series["color"] = repo_config["color"]
                     series_with_expanded_wildcards.append(repo_series)
             else:
                 series_with_expanded_wildcards.append(series)
