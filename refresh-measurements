@@ -145,7 +145,9 @@ def git_reset_to(repo_name, git_workdir, sha1):
 
 def get_sparse_commits(repo_name, repo_config):
     branch = repo_config["branch"]
-    git_workdir = local_workingdir(repo_config["git_url"])
+    git_url = repo_config["git_url"]
+    git_workdir = local_workingdir(git_url)
+
     treepath = repo_config.get("treepath", "all")
     if treepath == 'first-parent':
         git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
@@ -153,7 +155,11 @@ def get_sparse_commits(repo_name, repo_config):
         git_log_cmd = "git log --date-order --pretty=format:'%H %ct %s' " + branch
     # NOTE: We use .split("\n") rather than .splitlines() here because the latter
     # splits on \n, \r and \r\n and git allows \r in commit subject lines.
-    git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).split("\n")
+    try:
+        git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).split("\n")
+    except subprocess.CalledProcessError as e:
+        print >> sys.stderr, "ERROR: could not list commits on branch %s for git_url %s" % (branch, git_url)
+        sys.exit(1)
 
     all_xticks = []
     last_tick_commit_date = datetime.datetime.utcfromtimestamp(0)
