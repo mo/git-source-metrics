@@ -151,12 +151,24 @@ def get_sparse_commits(repo_name, repo_config):
     treepath = repo_config.get("treepath", "all")
     if treepath == 'first-parent':
         git_log_cmd = "git log --first-parent --pretty=format:'%H %ct %s' " + branch
-    else:
+    elif treepath == 'topo-order':
+        git_log_cmd = "git log --topo-order --pretty=format:'%H %ct %s' " + branch
+    elif treepath == 'author-date-order':
+        git_log_cmd = "git log --author-date-order --pretty=format:'%H %ct %s' " + branch
+    elif treepath == 'date-order':
         git_log_cmd = "git log --date-order --pretty=format:'%H %ct %s' " + branch
+    elif treepath == 'commit-date-chronological':
+        git_log_cmd = "git log --date-order --pretty=format:'%H %ct %s' " + branch + " | sort -k2,2 -rn"
+    elif treepath == 'ancestry-path-to-oldest-root':
+        git_log_cmd = "git log --ancestry-path --pretty=format:'%H %ct %s' $(git log --max-parents=0 HEAD --pretty=format:'%H %ct' | sort -k 2,2 -n | head -1 | cut -f 1 -d ' ').." + branch
+    else:
+        git_log_cmd = "git log --pretty=format:'%H %ct %s' " + branch
     # NOTE: We use .split("\n") rather than .splitlines() here because the latter
     # splits on \n, \r and \r\n and git allows \r in commit subject lines.
+    if not args.quiet:
+        print "git_log_cmd: " + git_log_cmd
     try:
-        git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).split("\n")
+        git_log_output = subprocess.check_output(git_log_cmd, cwd=git_workdir, shell=True).strip().split("\n")
     except subprocess.CalledProcessError as e:
         print >> sys.stderr, "ERROR: could not list commits on branch %s for git_url %s" % (branch, git_url)
         sys.exit(1)
