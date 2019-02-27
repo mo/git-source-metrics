@@ -192,6 +192,7 @@ def get_sparse_commits(repo_name, repo_config):
     elif args.tick_gap_days > 0:
         tick_gap_days = args.tick_gap_days
 
+    bad_commits = []
     while len(git_log_output) > 0:
         log_line = git_log_output.pop(-1)
         sha1, commit_timestamp, subject = log_line.split(" ", 2)
@@ -216,12 +217,16 @@ def get_sparse_commits(repo_name, repo_config):
                 print "INFO: commit with sha1 %s in repo %s is too old, ignoring." % (sha1, repo_name)
             continue
         if commit_date < last_tick_commit_date:
-            if not args.quiet:
-                print "WARNING: commit with sha1 %s in repo %s has commit date which is earlier than the commit date of its first parent, which is kind of weird; ignoring." % (sha1, repo_name)
+            bad_commits.append(sha1)
             continue
         if not tick_gap_days or args.all_commits or (commit_date - last_tick_commit_date).days >= tick_gap_days:
             all_xticks.append((sha1, commit_timestamp, subject))
             last_tick_commit_date = commit_date
+
+    if len(bad_commits) > 0 and not args.quiet:
+        print "WARNING: the following commits in repo %s had a commit date which is earlier than the commit date of one of its first parent commits; ignoring:" % repo_name
+        print "\n".join(bad_commits[:10]) + "\n...\n" + "\n".join(bad_commits[-10:])
+        print
 
     return all_xticks
 
