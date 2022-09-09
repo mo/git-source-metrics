@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import sets
@@ -54,11 +54,11 @@ for line in iter(proc.stdout.readline, b''):
     if int(current_timestamp) < cut_off_date:
         held_back.append((current_timestamp, current_sha1))
         if has_N_unique_authors(args.authoritative_dev_count, held_back):
-            print held_back[0][1]
+            print(held_back[0][1])
             sys.exit(0)
     else:
         held_back = []
-print current_sha1
+print(current_sha1)
 
 (stdoutdata, stderrdata) = proc.communicate()
 assert stdoutdata == '' or stdoutdata is None

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import sys
@@ -23,7 +23,7 @@ def get_sqlite_cache_dir():
 
 
 def get_repo_identifier(git_workdir):
-    return filter(str.isalnum, git_workdir)[-50:] + "_" + sha256(git_workdir)
+    return "".join(list(filter(str.isalnum, git_workdir))[-50:]) + "_" + sha256(git_workdir.encode("utf-8"))
 
 
 def get_sqlite_cache_file(sha1):
@@ -50,7 +50,7 @@ def cleanup_sqlite_cache_files_older_than(minutes):
     for old_cache_file in glob.glob(old_cache_glob):
         if datetime.datetime.now() - datetime.datetime.fromtimestamp(os.stat(old_cache_file).st_mtime) > datetime.timedelta(minutes=minutes):
             if args.verbose:
-                print "[DEBUG] removing outdated sqlite cache file at: " + old_cache_file
+                print("[DEBUG] removing outdated sqlite cache file at: " + old_cache_file)
             os.remove(old_cache_file)
 
 
@@ -73,9 +73,9 @@ def recreate_sqlite_cache(sha1):
 
     SEPARATOR_TOKEN = "(~_~)"
     proc = subprocess.Popen("git log --pretty='%H %ct %P" + SEPARATOR_TOKEN + "%ae" + SEPARATOR_TOKEN + "%s' " + sha1,
-                            stdout=subprocess.PIPE, bufsize=1, shell=True)
+                            stdout=subprocess.PIPE, shell=True)
     for line in iter(proc.stdout.readline, b''):
-        sha1, commit_timestamp, rest_of_line = line.strip().split(" ", 2)
+        sha1, commit_timestamp, rest_of_line = line.decode("utf-8").strip().split(" ", 2)
         parent_hashes_str, author_email, commit_subject = rest_of_line.split(SEPARATOR_TOKEN, 2)
         if not parent_hashes_str:
             parent_count = 0
@@ -90,7 +90,7 @@ def recreate_sqlite_cache(sha1):
             # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
             commit_timestamp = 0
 
-        params = (sha1.decode('utf-8'), commit_timestamp, parent_count, author_email.decode('utf-8'), commit_subject.decode('utf-8'))
+        params = (sha1, commit_timestamp, parent_count, author_email, commit_subject)
         c.execute("INSERT INTO commits VALUES (?, ?, ?, ?, ?)", params)
 
     conn.commit()
@@ -98,7 +98,7 @@ def recreate_sqlite_cache(sha1):
 
 
 def main():
-    sha1 = subprocess.check_output("git rev-parse " + args.refspec, shell=True).strip()
+    sha1 = subprocess.check_output("git rev-parse " + args.refspec, shell=True).decode("utf-8").strip()
 
     sqlite_conn = get_sqlite_cache(sha1)
     if not sqlite_conn:
@@ -110,7 +110,7 @@ def main():
                                 FROM commits
                                 WHERE ? <= commit_timestamp AND commit_timestamp <= ?""", query_params)
     for sha1, commit_timestamp, parent_count, author_email, commit_subject in results:
-        print "%s %s %s %s %s" % (sha1.encode("utf-8"), commit_timestamp, parent_count, author_email.encode("utf-8"), commit_subject.encode("utf-8"))
+        print("%s %s %s %s %s" % (sha1.encode("utf-8"), commit_timestamp, parent_count, author_email.encode("utf-8"), commit_subject.encode("utf-8")))
 
 
 parser = argparse.ArgumentParser()
@@ -119,7 +119,7 @@ parser.add_argument('refspec', metavar='REF_SPEC', nargs='?', default="origin/ma
 parser.add_argument('--from-timestamp', metavar='FROM', type=int, default=0,
                     help=('only print commits where the commit timestamp is more '
                           'recent that FROM (unix timestamp)'))
-parser.add_argument('--to-timestamp', metavar='TO', type=int, default=sys.maxint,
+parser.add_argument('--to-timestamp', metavar='TO', type=int, default=sys.maxsize,
                     help=('only print commits where the commit timestamp is more '
                           'recent that TO (unix timestamp)'))
 parser.add_argument('--gitlog-cache-minutes', metavar='MINUTES', type=int, default=5,

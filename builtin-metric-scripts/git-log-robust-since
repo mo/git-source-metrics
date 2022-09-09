@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Normal "git log --since FOO" follows all parents and stops when it finds a
 # commit with commit date older than FOO. In reality it's quite common that
@@ -62,9 +62,9 @@ for line in iter(proc.stdout.readline, b''):
             sys.exit(0)
     else:
         for (timestamp, sha1, author) in held_back:
-            print "%s %s %s" % (timestamp, sha1, author)
+            print("%s %s %s" % (timestamp, sha1, author))
         held_back = []
-        print "%s %s %s" % (current_timestamp, current_sha1, current_author)
+        print("%s %s %s" % (current_timestamp, current_sha1, current_author))
 
 (stdoutdata, stderrdata) = proc.communicate()
 assert stdoutdata == '' or stdoutdata is None

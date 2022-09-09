@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import re
 import argparse
@@ -24,4 +24,4 @@ if match:
 else:
     deletions = 0
 
-print str(insertions + deletions)
+print(str(insertions + deletions))

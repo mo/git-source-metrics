@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import argparse
@@ -10,7 +10,7 @@ parser.add_argument('refspec', metavar='REF_SPEC', nargs='?', default="origin/ma
 parser.add_argument('--from-timestamp', metavar='FROM', type=int, default=0,
                     help=('only print commits where the commit timestamp is more '
                           'recent that FROM (unix timestamp)'))
-parser.add_argument('--to-timestamp', metavar='TO', type=int, default=sys.maxint,
+parser.add_argument('--to-timestamp', metavar='TO', type=int, default=sys.maxsize,
                     help=('only print commits where the commit timestamp is more '
                           'recent that TO (unix timestamp)'))
 args = parser.parse_args()
@@ -28,7 +28,7 @@ for line in iter(proc.stdout.readline, b''):
         # with these and git 2.1.0 handles it fine. Relating to empty %cn maybe?
         current_timestamp = 0
     if args.from_timestamp <= current_timestamp and current_timestamp <= args.to_timestamp:
-        print "%s %s %s" % (current_sha1, current_timestamp, rest_of_line)
+        print("%s %s %s" % (current_sha1, current_timestamp, rest_of_line))
 
 # (stdoutdata, stderrdata) = proc.communicate()
 # assert stdoutdata == '' or stdoutdata is None
